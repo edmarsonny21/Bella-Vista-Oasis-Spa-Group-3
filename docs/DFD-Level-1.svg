@@ -1,0 +1,330 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1980" viewBox="0 0 1800 1980" role="img" aria-labelledby="title description">
+  <title id="title">DFD Level 1 - Bella Vista Oasis Spa</title>
+  <desc id="description">A readable Level 1 data flow diagram showing guest accounts, booking, manual GCash payment, manager verification, reservation operations, and status viewing.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 z" fill="#426653"/>
+    </marker>
+    <marker id="arrow-gold" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 z" fill="#b18435"/>
+    </marker>
+    <style>
+      text { font-family: Arial, Helvetica, sans-serif; fill: #20372c; }
+      .title { font-size: 34px; font-weight: 700; }
+      .subtitle { font-size: 18px; fill: #62736a; }
+      .boundary { fill: #fbfcfa; stroke: #76917f; stroke-width: 2; stroke-dasharray: 10 8; }
+      .boundary-label { font-size: 18px; font-weight: 700; letter-spacing: .5px; fill: #426653; }
+      .entity { fill: #fff; stroke: #314d3d; stroke-width: 2.4; }
+      .entity-title { font-size: 18px; font-weight: 700; text-anchor: middle; }
+      .entity-detail { font-size: 15px; fill: #62736a; text-anchor: middle; }
+      .process { fill: #eaf2ec; stroke: #426653; stroke-width: 2.3; }
+      .process-number { fill: #426653; }
+      .process-number-text { font-size: 13px; font-weight: 700; text-anchor: middle; fill: #fff; }
+      .process-title { font-size: 19px; font-weight: 700; text-anchor: middle; }
+      .process-detail { font-size: 15px; fill: #62736a; text-anchor: middle; }
+      .store-line { stroke: #617c69; stroke-width: 2; }
+      .store-id { font-size: 16px; font-weight: 700; fill: #426653; }
+      .store-title { font-size: 18px; font-weight: 700; }
+      .store-detail { font-size: 15px; fill: #62736a; }
+      .flow { fill: none; stroke: #426653; stroke-width: 2.5; marker-end: url(#arrow); stroke-linecap: round; stroke-linejoin: round; }
+      .external-flow { fill: none; stroke: #b18435; stroke-width: 2.4; stroke-dasharray: 8 6; marker-end: url(#arrow-gold); stroke-linecap: round; stroke-linejoin: round; }
+      .label { font-size: 15px; font-weight: 600; text-anchor: middle; fill: #33483a; paint-order: stroke; stroke: #fbfcfa; stroke-width: 6px; stroke-linejoin: round; }
+      .note { fill: #fff8e9; stroke: #d7bc7a; stroke-width: 1.5; }
+      .note-text { font-size: 15px; fill: #6a5424; }
+    </style>
+  </defs>
+
+  <rect width="1800" height="1980" fill="#fff"/>
+  <text class="title" x="900" y="38" text-anchor="middle">Data Flow Diagram - Level 1</text>
+  <text class="subtitle" x="900" y="66" text-anchor="middle">Bella Vista Oasis Spa Booking and Manual GCash Payment System</text>
+
+  <g>
+    <rect class="entity" x="40" y="90" width="210" height="65" rx="4"/>
+    <text class="entity-title" x="145" y="117">E1 Guest</text>
+    <text class="entity-detail" x="145" y="140">manual payment</text>
+  </g>
+  <g>
+    <rect class="entity" x="1510" y="90" width="220" height="65" rx="4"/>
+    <text class="entity-title" x="1620" y="117">E4 GCash</text>
+    <text class="entity-detail" x="1620" y="140">external wallet</text>
+  </g>
+  <path class="external-flow" d="M250 108 H1510"/>
+  <path class="external-flow" d="M1510 137 H250"/>
+  <text class="label" x="880" y="101">GCash transfer</text>
+  <text class="label" x="880" y="151">Transaction receipt</text>
+
+  <rect class="boundary" x="300" y="180" width="1180" height="1740" rx="18"/>
+  <text class="boundary-label" x="330" y="211">BELLA VISTA WEB APPLICATION</text>
+
+  <!-- Process 1: account registration, authentication, and verification. -->
+  <g>
+    <rect class="entity" x="40" y="225" width="210" height="80" rx="4"/>
+    <text class="entity-title" x="145" y="255">E1 Guest</text>
+    <text class="entity-detail" x="145" y="280">account access</text>
+  </g>
+  <g>
+    <rect class="process" x="390" y="210" width="360" height="130" rx="18"/>
+    <circle class="process-number" cx="420" cy="239" r="19"/>
+    <text class="process-number-text" x="420" y="244">1.0</text>
+    <text class="process-title" x="570" y="259">Manage Accounts &amp;</text>
+    <text class="process-title" x="570" y="284">Authentication</text>
+    <text class="process-detail" x="570" y="314">Register, verify, sign in, recover</text>
+  </g>
+  <g>
+    <path class="store-line" d="M900 225 H1350 M900 295 H1350 M900 225 V295"/>
+    <text class="store-id" x="918" y="250">D1</text>
+    <text class="store-title" x="960" y="252">Account &amp; Verification Data</text>
+    <text class="store-detail" x="960" y="278">Guest/admin accounts and codes</text>
+  </g>
+  <g>
+    <rect class="entity" x="1510" y="225" width="220" height="80" rx="4"/>
+    <text class="entity-title" x="1620" y="255">E2 Email Service</text>
+    <text class="entity-detail" x="1620" y="280">SMTP delivery</text>
+  </g>
+  <path class="flow" d="M250 245 H390"/>
+  <path class="flow" d="M390 290 H250"/>
+  <path class="flow" d="M750 245 H900"/>
+  <path class="flow" d="M900 280 H825 V310 H750"/>
+  <path class="flow" d="M750 320 H1420 V245 H1510"/>
+  <path class="flow" d="M1510 285 H1460 V370 H570 V340"/>
+  <text class="label" x="320" y="237">Account details</text>
+  <text class="label" x="320" y="283">Sign-in result</text>
+  <text class="label" x="825" y="237">Account data</text>
+  <text class="label" x="790" y="304">Lookup</text>
+  <text class="label" x="1080" y="312">Verification / recovery request</text>
+  <text class="label" x="1020" y="355">Email code</text>
+
+  <!-- Process 2: availability checks, pricing, and reservation creation. -->
+  <g>
+    <rect class="entity" x="40" y="445" width="210" height="80" rx="4"/>
+    <text class="entity-title" x="145" y="475">E1 Guest</text>
+    <text class="entity-detail" x="145" y="500">booking request</text>
+  </g>
+  <g>
+    <rect class="process" x="390" y="420" width="360" height="130" rx="18"/>
+    <circle class="process-number" cx="420" cy="449" r="19"/>
+    <text class="process-number-text" x="420" y="454">2.0</text>
+    <text class="process-title" x="570" y="469">Check Availability &amp;</text>
+    <text class="process-title" x="570" y="494">Create Reservation</text>
+    <text class="process-detail" x="570" y="524">Check room, time, guests, and total</text>
+  </g>
+  <g>
+    <path class="store-line" d="M900 405 H1350 M900 475 H1350 M900 405 V475"/>
+    <text class="store-id" x="918" y="430">D2</text>
+    <text class="store-title" x="960" y="432">Service &amp; Resource Catalog</text>
+    <text class="store-detail" x="960" y="458">Services, rooms, therapists</text>
+  </g>
+  <g>
+    <path class="store-line" d="M900 510 H1350 M900 580 H1350 M900 510 V580"/>
+    <text class="store-id" x="918" y="535">D3</text>
+    <text class="store-title" x="960" y="537">Appointment Records</text>
+    <text class="store-detail" x="960" y="563">Bookings, schedules, totals</text>
+  </g>
+  <path class="flow" d="M250 450 H390"/>
+  <path class="flow" d="M390 520 H250"/>
+  <path class="flow" d="M750 445 H900"/>
+  <path class="flow" d="M900 462 H850 V480 H750"/>
+  <path class="flow" d="M750 510 H830 V525 H900"/>
+  <path class="flow" d="M900 555 H870 V535 H750"/>
+  <text class="label" x="320" y="442">Booking details</text>
+  <text class="label" x="320" y="513">Availability + total</text>
+  <text class="label" x="825" y="437">Catalog lookup</text>
+  <text class="label" x="825" y="456">Room details</text>
+  <text class="label" x="835" y="506">New reservation</text>
+  <text class="label" x="825" y="595">Schedule lookup</text>
+
+  <!-- Process 3: manual GCash payment and receipt submission. -->
+  <g>
+    <rect class="entity" x="40" y="700" width="210" height="80" rx="4"/>
+    <text class="entity-title" x="145" y="730">E1 Guest</text>
+    <text class="entity-detail" x="145" y="755">payment submission</text>
+  </g>
+  <g>
+    <rect class="process" x="390" y="650" width="360" height="180" rx="18"/>
+    <circle class="process-number" cx="420" cy="679" r="19"/>
+    <text class="process-number-text" x="420" y="684">3.0</text>
+    <text class="process-title" x="570" y="705">Submit Manual</text>
+    <text class="process-title" x="570" y="730">GCash Payment</text>
+    <text class="process-detail" x="570" y="760">Submit 13-digit reference</text>
+    <text class="process-detail" x="570" y="783">and receipt for review</text>
+  </g>
+  <g>
+    <path class="store-line" d="M900 650 H1350 M900 720 H1350 M900 650 V720"/>
+    <text class="store-id" x="918" y="675">D3</text>
+    <text class="store-title" x="960" y="677">Appointment Records</text>
+    <text class="store-detail" x="960" y="703">Amount due for checkout</text>
+  </g>
+  <g>
+    <path class="store-line" d="M900 740 H1350 M900 810 H1350 M900 740 V810"/>
+    <text class="store-id" x="918" y="765">D6</text>
+    <text class="store-title" x="960" y="767">Static GCash QR Image</text>
+    <text class="store-detail" x="960" y="793">Displayed by the application</text>
+  </g>
+  <g>
+    <path class="store-line" d="M900 840 H1350 M900 910 H1350 M900 840 V910"/>
+    <text class="store-id" x="918" y="865">D4</text>
+    <text class="store-title" x="960" y="867">Payment Records</text>
+    <text class="store-detail" x="960" y="893">Reference, amount, status</text>
+  </g>
+  <g>
+    <path class="store-line" d="M900 940 H1350 M900 1010 H1350 M900 940 V1010"/>
+    <text class="store-id" x="918" y="965">D5</text>
+    <text class="store-title" x="960" y="967">Private Receipt Files</text>
+    <text class="store-detail" x="960" y="993">Protected receipt images</text>
+  </g>
+  <path class="flow" d="M250 720 H390"/>
+  <path class="flow" d="M390 785 H250"/>
+  <path class="flow" d="M900 680 H840 V690 H750"/>
+  <path class="flow" d="M900 770 H820 V725 H750"/>
+  <path class="flow" d="M750 770 H800 V875 H900"/>
+  <path class="flow" d="M750 805 H780 V975 H900"/>
+  <text class="label" x="320" y="712">Ref + receipt</text>
+  <text class="label" x="320" y="778">QR + amount</text>
+  <text class="label" x="820" y="682">Amount due</text>
+  <text class="label" x="820" y="749">Static QR image</text>
+  <text class="label" x="820" y="868">Payment record</text>
+  <text class="label" x="840" y="968">Receipt image</text>
+
+  <!-- Process 4: manager payment review and reservation update. -->
+  <g>
+    <rect class="entity" x="40" y="1110" width="210" height="80" rx="4"/>
+    <text class="entity-title" x="145" y="1140">E3 Manager</text>
+    <text class="entity-detail" x="145" y="1165">payment review</text>
+  </g>
+  <g>
+    <rect class="process" x="390" y="1080" width="360" height="150" rx="18"/>
+    <circle class="process-number" cx="420" cy="1109" r="19"/>
+    <text class="process-number-text" x="420" y="1114">4.0</text>
+    <text class="process-title" x="570" y="1135">Verify Payment &amp;</text>
+    <text class="process-title" x="570" y="1160">Update Reservation</text>
+    <text class="process-detail" x="570" y="1190">Approve or reject with reason</text>
+  </g>
+  <g>
+    <path class="store-line" d="M900 1040 H1350 M900 1110 H1350 M900 1040 V1110"/>
+    <text class="store-id" x="918" y="1065">D3</text>
+    <text class="store-title" x="960" y="1067">Appointment Records</text>
+    <text class="store-detail" x="960" y="1093">Reservation to confirm</text>
+  </g>
+  <g>
+    <path class="store-line" d="M900 1130 H1350 M900 1200 H1350 M900 1130 V1200"/>
+    <text class="store-id" x="918" y="1155">D4</text>
+    <text class="store-title" x="960" y="1157">Payment Records</text>
+    <text class="store-detail" x="960" y="1183">Verification status and reason</text>
+  </g>
+  <g>
+    <path class="store-line" d="M900 1220 H1350 M900 1290 H1350 M900 1220 V1290"/>
+    <text class="store-id" x="918" y="1245">D5</text>
+    <text class="store-title" x="960" y="1247">Private Receipt Files</text>
+    <text class="store-detail" x="960" y="1273">Receipt inspected by manager</text>
+  </g>
+  <path class="flow" d="M250 1125 H390"/>
+  <path class="flow" d="M390 1190 H250"/>
+  <path class="flow" d="M900 1050 H850 V1075 H650 V1080"/>
+  <path class="flow" d="M750 1095 H900"/>
+  <path class="flow" d="M750 1155 H900"/>
+  <path class="flow" d="M900 1180 H850 V1205 H750"/>
+  <path class="flow" d="M900 1280 H810 V1220 H750"/>
+  <text class="label" x="320" y="1117">Approve / reject</text>
+  <text class="label" x="320" y="1183">Review result</text>
+  <text class="label" x="835" y="1068">Booking lookup</text>
+  <text class="label" x="825" y="1087">Confirm booking</text>
+  <text class="label" x="825" y="1147">Payment decision</text>
+  <text class="label" x="835" y="1198">Status result</text>
+  <text class="label" x="830" y="1274">Receipt review</text>
+
+  <!-- Process 5: manager reservation, staff, and deletion operations. -->
+  <g>
+    <rect class="entity" x="40" y="1435" width="210" height="80" rx="4"/>
+    <text class="entity-title" x="145" y="1465">E3 Manager</text>
+    <text class="entity-detail" x="145" y="1490">spa operations</text>
+  </g>
+  <g>
+    <rect class="process" x="390" y="1390" width="360" height="170" rx="18"/>
+    <circle class="process-number" cx="420" cy="1419" r="19"/>
+    <text class="process-number-text" x="420" y="1424">5.0</text>
+    <text class="process-title" x="570" y="1445">Manage Reservations &amp;</text>
+    <text class="process-title" x="570" y="1470">Staff Schedule</text>
+    <text class="process-detail" x="570" y="1500">Walk-ins, assignments, statuses</text>
+    <text class="process-detail" x="570" y="1523">and reservation deletion</text>
+  </g>
+  <g>
+    <path class="store-line" d="M900 1320 H1350 M900 1380 H1350 M900 1320 V1380"/>
+    <text class="store-id" x="918" y="1343">D2</text>
+    <text class="store-title" x="960" y="1345">Service &amp; Resource Catalog</text>
+    <text class="store-detail" x="960" y="1368">Room and therapist lookup</text>
+  </g>
+  <g>
+    <path class="store-line" d="M900 1400 H1350 M900 1465 H1350 M900 1400 V1465"/>
+    <text class="store-id" x="918" y="1423">D3</text>
+    <text class="store-title" x="960" y="1425">Appointment Records</text>
+    <text class="store-detail" x="960" y="1448">Operations and schedule updates</text>
+  </g>
+  <g>
+    <path class="store-line" d="M900 1480 H1350 M900 1545 H1350 M900 1480 V1545"/>
+    <text class="store-id" x="918" y="1503">D4</text>
+    <text class="store-title" x="960" y="1505">Payment Records</text>
+    <text class="store-detail" x="960" y="1528">Linked payment cleanup</text>
+  </g>
+  <g>
+    <path class="store-line" d="M900 1560 H1350 M900 1625 H1350 M900 1560 V1625"/>
+    <text class="store-id" x="918" y="1583">D5</text>
+    <text class="store-title" x="960" y="1585">Private Receipt Files</text>
+    <text class="store-detail" x="960" y="1608">Receipt cleanup on deletion</text>
+  </g>
+  <path class="flow" d="M250 1450 H390"/>
+  <path class="flow" d="M390 1505 H250"/>
+  <path class="flow" d="M900 1350 H850 V1375 H650 V1390"/>
+  <path class="flow" d="M750 1420 H900"/>
+  <path class="flow" d="M900 1450 H850 V1480 H750"/>
+  <path class="flow" d="M750 1510 H900"/>
+  <path class="flow" d="M750 1540 H820 V1590 H900"/>
+  <text class="label" x="320" y="1442">Manager actions</text>
+  <text class="label" x="320" y="1498">Updated schedule</text>
+  <text class="label" x="825" y="1365">Resource lookup</text>
+  <text class="label" x="825" y="1412">Booking update</text>
+  <text class="label" x="820" y="1488">Schedule lookup</text>
+  <text class="label" x="825" y="1530">Payment cleanup</text>
+  <text class="label" x="820" y="1582">Receipt cleanup</text>
+
+  <!-- Process 6: guest reservation and payment status. -->
+  <g>
+    <rect class="entity" x="40" y="1745" width="210" height="80" rx="4"/>
+    <text class="entity-title" x="145" y="1775">E1 Guest</text>
+    <text class="entity-detail" x="145" y="1800">status inquiry</text>
+  </g>
+  <g>
+    <rect class="process" x="390" y="1710" width="360" height="140" rx="18"/>
+    <circle class="process-number" cx="420" cy="1739" r="19"/>
+    <text class="process-number-text" x="420" y="1744">6.0</text>
+    <text class="process-title" x="570" y="1765">View Booking &amp;</text>
+    <text class="process-title" x="570" y="1790">Payment Status</text>
+    <text class="process-detail" x="570" y="1820">Show rejection reason if present</text>
+  </g>
+  <g>
+    <path class="store-line" d="M900 1695 H1350 M900 1765 H1350 M900 1695 V1765"/>
+    <text class="store-id" x="918" y="1720">D3</text>
+    <text class="store-title" x="960" y="1722">Appointment Records</text>
+    <text class="store-detail" x="960" y="1748">Guest-owned reservation status</text>
+  </g>
+  <g>
+    <path class="store-line" d="M900 1780 H1350 M900 1850 H1350 M900 1780 V1850"/>
+    <text class="store-id" x="918" y="1805">D4</text>
+    <text class="store-title" x="960" y="1807">Payment Records</text>
+    <text class="store-detail" x="960" y="1833">Guest-visible payment result</text>
+  </g>
+  <path class="flow" d="M250 1740 H390"/>
+  <path class="flow" d="M390 1815 H250"/>
+  <path class="flow" d="M750 1735 H900"/>
+  <path class="flow" d="M900 1750 H850 V1770 H750"/>
+  <path class="flow" d="M750 1805 H900"/>
+  <path class="flow" d="M900 1830 H850 V1840 H750"/>
+  <text class="label" x="320" y="1732">Status request</text>
+  <text class="label" x="320" y="1808">Status result</text>
+  <text class="label" x="825" y="1727">Reservation lookup</text>
+  <text class="label" x="820" y="1765">Reservation status</text>
+  <text class="label" x="825" y="1797">Payment lookup</text>
+  <text class="label" x="825" y="1835">Status + reason</text>
+
+  <rect class="note" x="330" y="1870" width="1120" height="34" rx="7"/>
+  <text class="note-text" x="350" y="1893">Rectangles = external entities; rounded boxes = processes; parallel lines = data stores. Repeated E1/E3 and D2-D5 labels represent the same entities and stores. GCash is manual; no API or webhook is used.</text>
+</svg>

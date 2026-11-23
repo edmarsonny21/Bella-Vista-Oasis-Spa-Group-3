@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="500" viewBox="0 0 1600 500" role="img" aria-labelledby="title description">
+  <title id="title">Bella Vista Oasis Spa documentation banner</title>
+  <desc id="description">The Bella Vista Oasis Spa logo banner on the system forest green background.</desc>
+
+  <rect width="1600" height="500" fill="#1e3a2f"/>
+
+  <g transform="translate(120 92) scale(2)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M25 146V84a57 57 0 0 1 114 0v62" stroke="#c9d0c7" stroke-width="4"/>
+    <path d="M43 146V87a39 39 0 0 1 78 0v59" stroke="#c5a059" stroke-width="2"/>
+    <path d="M82 118V77" stroke="#c9d0c7" stroke-width="3"/>
+    <path d="M81 103c-18 0-27-9-28-25 16 0 26 8 28 25Zm2-13c1-16 10-26 26-28 0 16-9 25-26 28Zm-2 34c-14 0-22-7-23-20 13 0 22 7 23 20Zm2-8c1-13 8-21 21-22-1 13-8 21-21 22Z" fill="#c9d0c7" stroke="#c9d0c7" stroke-width="1"/>
+    <path d="M20 151h124" stroke="#c5a059" stroke-width="2"/>
+  </g>
+  <circle cx="284" cy="146" r="14" fill="#c5a059"/>
+
+  <g>
+    <text x="500" y="222" fill="#fbf8f3" font-family="Georgia, 'Times New Roman', serif" font-size="96" font-weight="700" letter-spacing="3">BELLA VISTA</text>
+    <text x="506" y="292" fill="#c5a059" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="400" letter-spacing="14">OASIS SPA</text>
+    <path d="M506 326h520" stroke="#c5a059" stroke-width="2"/>
+    <text x="506" y="374" fill="#fbf8f3" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="400" letter-spacing="6">HIGHLAND WELLNESS SANCTUARY</text>
+  </g>
+</svg>

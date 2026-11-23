@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 176" role="img" aria-labelledby="title">
+  <title id="title">Bella Vista Oasis Spa</title>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M25 146V84a57 57 0 0 1 114 0v62" stroke="#1e3a2f" stroke-width="4"/>
+    <path d="M43 146V87a39 39 0 0 1 78 0v59" stroke="#c5a059" stroke-width="2"/>
+    <path d="M82 118V77" stroke="#1e3a2f" stroke-width="3"/>
+    <path d="M81 103c-18 0-27-9-28-25 16 0 26 8 28 25Zm2-13c1-16 10-26 26-28 0 16-9 25-26 28Zm-2 34c-14 0-22-7-23-20 13 0 22 7 23 20Zm2-8c1-13 8-21 21-22-1 13-8 21-21 22Z" fill="#1e3a2f" stroke="#1e3a2f" stroke-width="1"/>
+    <path d="M20 151h124" stroke="#c5a059" stroke-width="2"/>
+  </g>
+  <circle cx="82" cy="27" r="7" fill="#c5a059"/>
+  <text x="174" y="91" fill="#1e3a2f" font-family="Georgia, 'Times New Roman', serif" font-size="43" letter-spacing="1.5">BELLA VISTA</text>
+  <text x="177" y="124" fill="#7c6845" font-family="Arial, Helvetica, sans-serif" font-size="15" letter-spacing="7">OASIS SPA</text>
+  <path d="M177 139h276" stroke="#c5a059" stroke-width="1"/>
+  <text x="177" y="158" fill="#5e7366" font-family="Arial, Helvetica, sans-serif" font-size="10" letter-spacing="3.1">HIGHLAND WELLNESS SANCTUARY</text>
+</svg>

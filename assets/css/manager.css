@@ -1,0 +1,442 @@
+.manager-page {
+  min-height: 100vh;
+  background: var(--canvas);
+}
+
+.brand-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  background: rgba(251, 248, 243, .12);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+  animation: brand-splash-in-out 2s ease both;
+}
+
+html.brand-splash-active,
+html.brand-splash-active body {
+  height: 100%;
+  overflow: hidden !important;
+}
+
+html.brand-splash-active body {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+}
+
+.brand-splash img {
+  display: block;
+  width: min(82vw, 460px);
+  height: auto;
+}
+
+.manager-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  min-height: 72px;
+  backdrop-filter: blur(14px);
+  background: rgba(255, 255, 255, .94);
+}
+
+.manager-header > a:last-child {
+  color: var(--forest);
+  font-size: .9rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.manager-wrap {
+  max-width: 1180px;
+  margin: 30px auto 56px;
+}
+
+.dashboard-title {
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.dashboard-title h1 {
+  letter-spacing: -.025em;
+}
+
+.dashboard-title > div:first-child > small {
+  display: inline-block;
+  margin-top: 5px;
+  color: var(--muted);
+}
+
+.dashboard-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.dashboard-actions .button {
+  min-height: 42px;
+}
+
+.manager-page .button {
+  transition: transform .18s ease, box-shadow .18s ease, background-color .18s ease, opacity .18s ease;
+}
+
+.manager-page .button:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 7px 18px rgba(20, 40, 32, .12);
+}
+
+.manager-page .button:disabled {
+  cursor: wait;
+  opacity: .7;
+}
+
+.manager-wrap,
+.login-card {
+  animation: manager-enter .38s ease-out both;
+}
+
+.metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 22px 0;
+}
+
+.metric,
+.panel {
+  border-color: rgba(44, 62, 80, .1);
+  border-radius: 12px;
+  box-shadow: 0 5px 20px rgba(20, 40, 32, .035);
+}
+
+.metric {
+  min-height: 124px;
+  padding: 18px 20px;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.metric:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(20, 40, 32, .08);
+}
+
+.metric small {
+  font-size: 10px;
+}
+
+.metric strong {
+  font-size: 27px;
+}
+
+.metric span {
+  color: var(--muted);
+  font-size: .82rem;
+}
+
+.panel {
+  margin: 18px 0;
+  padding: 20px;
+}
+
+.panel h2 {
+  margin-top: 0;
+}
+
+.login-card {
+  margin-top: clamp(36px, 8vh, 78px);
+  padding: clamp(24px, 5vw, 36px);
+  border-radius: 14px;
+  box-shadow: 0 18px 52px rgba(20, 40, 32, .09);
+}
+
+.login-card form[aria-busy="true"] {
+  opacity: .82;
+}
+
+.password-strength {
+  display: grid;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.password-strength-meter {
+  display: block;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 5px;
+  background: #e8e4dc;
+}
+
+.password-strength-meter > span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: #b94a48;
+  transition: width .2s ease, background-color .2s ease;
+}
+
+.password-strength[data-level="2"] .password-strength-meter > span {
+  background: #c58b3b;
+}
+
+.password-strength[data-level="3"] .password-strength-meter > span {
+  background: #74934d;
+}
+
+.password-strength[data-level="4"] .password-strength-meter > span {
+  background: var(--forest);
+}
+
+.password-strength-label {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.password-help {
+  grid-column: 1 / -1;
+  margin: -6px 0 2px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.auth-feedback-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10020;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(7, 19, 14, .48);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  animation: manager-enter .18s ease-out both;
+}
+
+.auth-feedback-card {
+  width: min(390px, 100%);
+  padding: 28px;
+  border: 1px solid rgba(197, 160, 89, .45);
+  background: var(--canvas);
+  text-align: center;
+  box-shadow: 0 18px 56px rgba(0, 0, 0, .22);
+}
+
+.auth-feedback-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  margin: 0 auto 13px;
+  place-items: center;
+  border-radius: 50%;
+  color: white;
+  background: var(--forest);
+  font-size: 21px;
+  font-weight: 700;
+}
+
+.auth-feedback-card.is-error .auth-feedback-icon {
+  background: #a63c36;
+}
+
+.auth-feedback-card h2 {
+  margin: 0 0 8px;
+  color: var(--forest);
+  font: 700 23px "Playfair Display", Georgia, serif;
+}
+
+.auth-feedback-card p {
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.auth-feedback-card .button {
+  min-width: 120px;
+}
+
+.logout-confirm-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.logout-confirm-actions .button {
+  min-width: 136px;
+}
+
+.login-card input:focus,
+.manager-page .control:focus,
+.manager-page select:focus {
+  outline: 3px solid rgba(197, 160, 89, .25);
+  outline-offset: 1px;
+}
+
+.manager-page .room {
+  border-radius: 9px;
+  transition: border-color .2s ease, background-color .2s ease;
+}
+
+.manager-page .room:hover {
+  border-color: rgba(197, 160, 89, .55);
+  background: #fffdf9;
+}
+
+.manager-page .table-wrap {
+  border: 1px solid rgba(44, 62, 80, .09);
+  border-radius: 10px;
+}
+
+.therapist-status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.therapist-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid rgba(44, 62, 80, .1);
+  border-radius: 9px;
+  background: #fffdf9;
+}
+
+.therapist-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.therapist-card-heading strong {
+  color: var(--forest);
+}
+
+.therapist-status-pill {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #edf2ee;
+  color: #355844;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.therapist-status-pill.assigned {
+  background: #fff1d6;
+  color: #755019;
+}
+
+.therapist-status-pill.in_session {
+  background: #f1eafb;
+  color: #553b77;
+}
+
+.therapist-specialties,
+.therapist-assignment {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.therapist-assignment {
+  color: var(--forest);
+  font-weight: 600;
+}
+
+@keyframes manager-enter {
+  from {
+    opacity: 0;
+    transform: translateY(9px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes brand-splash-in-out {
+  0% {
+    opacity: 0;
+  }
+  18%, 72% {
+    opacity: 1;
+  }
+  100% { opacity: 0; }
+}
+
+@media (max-width: 760px) {
+  .manager-header {
+    position: static;
+    gap: 12px;
+  }
+
+  .manager-header .brand strong {
+    font-size: .92rem;
+  }
+
+  .manager-wrap {
+    margin-top: 22px;
+  }
+
+  .dashboard-title {
+    align-items: flex-start;
+  }
+
+  .dashboard-actions {
+    justify-content: flex-start;
+  }
+
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 460px) {
+  .dashboard-actions {
+    display: grid;
+    width: 100%;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .dashboard-actions .button-dark {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .dashboard-actions .button-outline {
+    width: 100%;
+  }
+
+  .metric {
+    min-height: 112px;
+    padding: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-splash {
+    animation: none;
+    opacity: 1;
+  }
+
+  .manager-wrap,
+  .login-card {
+    animation: none;
+  }
+
+  .manager-page *,
+  .manager-page *::before,
+  .manager-page *::after {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+}

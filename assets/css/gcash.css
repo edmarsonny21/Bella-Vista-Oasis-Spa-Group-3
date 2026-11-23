@@ -1,0 +1,81 @@
+:root {
+  color-scheme: light;
+  --forest: #173a2b;
+  --ink: #26342d;
+  --muted: #6a756e;
+  --line: #dce3dd;
+  --canvas: #f5f7f3;
+  --gold: #c5a059;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font: 15px/1.55 "Plus Jakarta Sans", "Segoe UI", Arial, sans-serif;
+}
+a { color: var(--forest); }
+.gcash-shell { width: min(1050px, calc(100% - 32px)); margin: 0 auto; padding: 22px 0 56px; }
+.gcash-header { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 8px 0 22px; }
+.brand-link { font-weight: 750; color: var(--forest); text-decoration: none; }
+.gcash-header nav { display: flex; gap: 18px; flex-wrap: wrap; }
+.gcash-header nav a { font-size: 13px; font-weight: 650; text-decoration: none; }
+.gcash-card { max-width: 780px; margin: 12px auto; padding: clamp(22px, 5vw, 42px); background: white; border: 1px solid var(--line); box-shadow: 0 18px 48px #173a2b0d; }
+.admin-card { max-width: none; }
+.eyebrow { margin: 0 0 8px; color: #94733d; font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+h1 { margin: 0 0 12px; color: var(--forest); font: 600 clamp(28px, 5vw, 39px)/1.15 "Playfair Display", Georgia, serif; }
+.intro { max-width: 640px; margin: 0 0 24px; color: var(--muted); }
+.order-summary { display: grid; grid-template-columns: minmax(110px, .7fr) 1.3fr; gap: 8px 18px; margin: 22px 0; padding: 18px; background: #f5f7f3; border: 1px solid var(--line); }
+.order-summary span { color: var(--muted); }
+.amount { color: var(--forest); font-size: 20px; }
+.payment-instructions { display: grid; grid-template-columns: minmax(180px, 260px) 1fr; gap: 26px; align-items: center; margin: 22px 0; }
+.qr-code { display: block; width: 100%; aspect-ratio: 1; object-fit: contain; border: 1px solid var(--line); background: #fff; padding: 10px; }
+.account-details { padding: 18px; background: #fbfaf6; border: 1px solid #e8dfcd; }
+.account-details h2 { margin: 0 0 14px; color: var(--forest); font: 600 20px "Playfair Display", Georgia, serif; }
+.account-details p { display: flex; flex-direction: column; gap: 3px; margin: 12px 0 0; }
+.account-details p span,.payment-form label,.select-booking label { color: var(--muted); font-size: 12px; font-weight: 700; }
+.payment-form,.select-booking { display: grid; gap: 10px; margin-top: 24px; }
+input,select { width: 100%; min-height: 46px; padding: 11px 12px; border: 1px solid #cbd5ce; border-radius: 4px; background: white; color: var(--ink); font: inherit; }
+input:focus,select:focus { outline: 3px solid #c5a05955; border-color: var(--gold); }
+input[type=file] { min-height: auto; padding: 10px; }
+small { color: var(--muted); }
+.button { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; padding: 10px 16px; border: 0; border-radius: 3px; background: var(--forest); color: white; font: 700 13px "Segoe UI", Arial, sans-serif; text-decoration: none; cursor: pointer; }
+.button:hover { background: #24543f; }
+.notice { margin: 18px 0; padding: 13px 15px; border: 1px solid #e4d7b6; background: #fcf8ec; color: #62502b; }
+.notice.error { border-color: #e8b8b8; background: #fff0ef; color: #842727; }
+.notice.success { border-color: #bbd9c2; background: #edf8ef; color: #174a31; }
+.notice a { font-weight: 700; }
+.status-panel { margin-top: 24px; padding-top: 4px; border-top: 1px solid var(--line); }
+.status-badge { display: inline-flex; padding: 7px 11px; border-radius: 3px; font-size: 13px; font-weight: 800; }
+.pending { color: #775a19; background: #fff4d8; }
+.verified { color: #155d36; background: #e8f4ec; }
+.rejected { color: #8f2727; background: #fbeceb; }
+.not-submitted { color: #48564d; background: #edf1ed; }
+.empty-state,.muted { color: var(--muted); }
+.table-wrap { width: 100%; overflow-x: auto; margin-top: 22px; }
+table { width: 100%; min-width: 930px; border-collapse: collapse; text-align: left; }
+th,td { padding: 12px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { color: var(--muted); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+td { font-size: 12px; }
+code { font-size: 12px; }
+.review-actions { display: flex; gap: 7px; }
+.review-actions form { margin: 0; }
+.review-actions .button { min-height: 36px; padding: 7px 10px; font-size: 11px; }
+.button.approve { background: #1d7142; }
+.button.reject { background: #9c3434; }
+.receipt-button { width: 64px; height: 54px; padding: 3px; border: 1px solid var(--line); background: white; cursor: zoom-in; }
+.receipt-button img { width: 100%; height: 100%; object-fit: cover; }
+.receipt-dialog { width: min(900px, calc(100% - 28px)); max-width: none; max-height: 92vh; padding: 12px; border: 0; box-shadow: 0 16px 70px #0008; }
+.receipt-dialog::backdrop { background: #07130ed1; }
+.receipt-dialog img { display: block; width: 100%; max-height: calc(92vh - 60px); object-fit: contain; }
+.dialog-close { display: block; margin: 0 0 10px auto; padding: 8px 13px; border: 0; background: var(--forest); color: white; cursor: pointer; }
+@media (max-width: 640px) {
+  .gcash-shell { width: min(100% - 22px, 1050px); padding-top: 12px; }
+  .gcash-header { align-items: flex-start; flex-direction: column; }
+  .gcash-header nav { gap: 14px; }
+  .payment-instructions { grid-template-columns: 1fr; }
+  .qr-code { width: min(100%, 300px); margin: 0 auto; }
+  .order-summary { grid-template-columns: 1fr; gap: 3px; }
+  .order-summary strong:not(:last-child) { margin-bottom: 8px; }
+}
