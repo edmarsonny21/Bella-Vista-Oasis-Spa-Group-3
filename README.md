@@ -15,20 +15,31 @@ The guest booking portal and staff dashboard use HTML, CSS, browser JavaScript, 
 
    Enter a password of at least 12 characters when prompted.
 5. Visit [http://localhost/bellavista](http://localhost/bellavista) for the guest portal, or [http://localhost/bellavista/manager](http://localhost/bellavista/manager) for staff sign-in.
+6. To create a therapist login, use the therapist's existing database ID and a unique username:
+
+   ```powershell
+   & 'C:\xampp\php\php.exe' scripts\create_therapist.php 1 elena.morales
+   ```
+
+   Enter a password of at least 12 characters, then sign in at [http://localhost/bellavista/therapist_portal.php](http://localhost/bellavista/therapist_portal.php).
 
 Apache and MySQL must be running in XAMPP whenever you use the app.
 
 ## Email, accounts, and reCAPTCHA setup
 
-Guest registration stores accounts in MySQL and sends a six-digit email verification code. Codes expire after 15 minutes and allow up to five verification attempts. Guests can reset their password using a reCAPTCHA-protected code sent to their verified email. Signed-in password changes also require a six-digit code sent to the current email before the password changes. Email changes require two codes: one sent to the current email to authorize the request, then another sent to the new address; the existing email remains active until both are verified. Change codes expire after 15 minutes, allow up to five attempts, and have a 60-second resend cooldown. Guest profile settings show reservation dates, treatment details, and booking statuses. Guests must sign in with a verified account to book; the booking is confirmed immediately after a successful reservation. Guest registration, guest sign-in, bookings, manager sign-in, verification-code resends, and password reset use Google reCAPTCHA v2.
+Guest registration stores accounts in MySQL and sends a six-digit email verification code. Codes expire after 15 minutes and allow up to five verification attempts. Guests can reset their password using a reCAPTCHA-protected code sent to their verified email. Signed-in password changes also require a six-digit code sent to the current email before the password changes. Email changes require two codes: one sent to the current email to authorize the request, then another sent to the new address; the existing email remains active until both are verified. Change codes expire after 15 minutes, allow up to five attempts, and have a 60-second resend cooldown. Guest profile settings show reservation dates, treatment details, and booking statuses. Guests must sign in with a verified account to book, can filter therapists by specialty, and must choose an available therapist before confirming the reservation. Guest registration, guest sign-in, bookings, manager sign-in, verification-code resends, and password reset use Google reCAPTCHA v2.
 
-Guest passwords must be 12–50 characters. Registration includes a live strength indicator; a unique password of at least 16 characters is recommended. Full names accept letters and spaces with a 35-character maximum. Booking phone numbers must use the Philippines +63 format, for example +639171234567.
+Guest passwords must be 12–50 characters. Registration includes a live strength indicator; a unique password of at least 16 characters is recommended. Registration and walk-in bookings collect first, optional middle, and last names separately while preserving the formatted full name for existing receipts and account workflows. Booking phone numbers must use the Philippines +63 format, for example +639171234567.
 
 ## Manual GCash payments
 
-The app supports manual GCash payment submission without an external payment gateway. Import `database/schema.sql` to create the `payments` table and place the static QR image at `assets/images/gcash-qr-code.jpg`. New signed-in guest bookings begin as `On Progress`; managers can also move an older confirmed guest booking to `On Progress` for payment review if it has no verified payment. Approving a pending payment in `admin_payments.php` automatically marks its eligible reservation as `confirmed`. Signed-in guests can pay for their own active bookings at `checkout_gcash.php` and view the latest payment result at `order_status.php`. Receipt files are stored under the web root in `storage/gcash-receipts`, with direct web access denied; managers view them through the authenticated `receipt_image.php` endpoint. Keep Apache `.htaccess` overrides enabled for the storage protection rule.
+The app supports manual GCash payment submission without an external payment gateway. Import `database/schema.sql` to create the `payments` table and place the static QR image at `assets/images/gcash-qr-code.jpg`. New signed-in guest bookings begin as `On Progress`; managers can also move an older confirmed guest booking to `On Progress` for payment review if it has no verified payment. Approving a pending payment in the manager workspace automatically marks its eligible reservation as `confirmed`. Signed-in guests can pay for their own active bookings at `checkout_gcash.php` and view the latest payment result at `order_status.php`. Receipt files are stored under the web root in `storage/gcash-receipts`, with direct web access denied; managers view them through the authenticated `receipt_image.php` endpoint. Keep Apache `.htaccess` overrides enabled for the storage protection rule.
 
 The manager dashboard also supports permanent deletion of individually selected bookings, all bookings, or every booking in the selected status across all dates. Deleting a booking cascades to its payment records and removes its validated private receipt file; these actions require a manager session and CSRF token and display an irreversible-action confirmation.
+
+The manager console separates dashboard, reservations, walk-in booking, payment review, therapist roster, therapist schedule, rooms, and treatments into dedicated routes under `/manager/`. Payment review and recent verified transactions are available in the shared manager workspace at `/manager/payments`.
+
+Therapists sign in with credentials created by `scripts/create_therapist.php`. Their portal has separate `/therapist/dashboard`, `/therapist/appointments`, `/therapist/schedule`, and `/therapist/day-offs` pages, with navigation available after sign-in. It displays only their assigned reservations, including health-declaration notes, and permits in-session/completed status updates subject to appointment-time and verified-payment rules. Therapists can toggle assignment availability and request days off; requested days off are excluded from guest and manager therapist choices. Guest booking displays each therapist’s availability for the selected date and time; unavailable, off-duty, day-off, or already-booked therapists remain visible but cannot be selected. Required-field indicators update as values become valid or invalid. The guest booking flow stores an optional "Others" health declaration separately from general requests. Verified payments have a printable confirmation view at `payment_receipt.php`.
 
 See the [Level 1 data flow diagram](docs/DFD-Level-1.md) for the system processes, external entities, data stores, and manual GCash payment boundary.
 
@@ -57,11 +68,12 @@ Until valid keys and SMTP settings are filled in, account creation and booking v
 
 ## Updating an existing database
 
-Guest-account, email-verification, password-reset, profile settings, and account-change verification are all defined in `database/schema.sql`. Import this file for a new installation. It also checks for and adds the account-related columns, index, and foreign key required by older installations, while preserving existing accounts and reservations. Back up the database before importing it into an existing installation.
+Guest-account, email-verification, password-reset, profile settings, therapist portal, split-name, and health declaration changes are defined in `database/schema.sql`. Import this file for a new installation. It checks for and adds the account and reservation columns required by older installations while preserving existing accounts and reservations. Back up the database before importing it into an existing installation.
 
 ## Project files
 
 - `index.php` serves the guest portal and manager page.
+- `therapist_portal.php` and `assets/js/therapist.js` provide the authenticated therapist view.
 - `assets/css/site.css` contains the page styles.
 - `assets/css/manager.css` contains staff dashboard styling and motion.
 - `assets/css/refinements.css` contains shared responsive polish and reduced-motion-aware transitions.
@@ -69,6 +81,7 @@ Guest-account, email-verification, password-reset, profile settings, and account
 - `assets/images/bella-vista-documentation-banner.svg` is the 1600 × 500 branded banner for documentation, presentations, and README headers.
 - `assets/js/app.js` handles the booking form, availability checks, manager dashboard, and PHP API requests.
 - `api/` contains the PHP endpoints.
+- `api/therapist_portal.php` returns assigned appointments and handles availability, leave requests, and therapist-owned status updates.
 - `database/schema.sql` is the project's single SQL file. It creates or updates the MySQL schema and seeds the initial services, rooms, and therapists.
 
 Apache rewrite rules in `.htaccess` serve the manager route and static assets. Keep that file in the project folder. If Apache reports an `.htaccess` error, confirm `mod_rewrite` is enabled and the `htdocs` directory allows overrides (`AllowOverride All`).

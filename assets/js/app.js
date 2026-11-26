@@ -12,20 +12,26 @@
     "FL-1": "Estate Grand Veranda", "FL-2": "Orchid Oasis Lounge",
   };
   const serviceById = Object.fromEntries(serviceList.map((service) => [service.id, service]));
-  const isManagerRoute = /\/manager\/?$/.test(window.location.pathname);
-  const projectPath = window.location.pathname.replace(/manager\/?$/, "").replace(/\/?$/, "/");
+  const isManagerRoute = /\/manager(?:\/[^/]+)?\/?$/.test(window.location.pathname);
+  const managerPageMatch = window.location.pathname.match(/\/manager\/([^/]+)\/?$/);
+  const managerPage = managerPageMatch?.[1] || "dashboard";
+  const projectPath = window.location.pathname.replace(/manager(?:\/.*)?\/?$/, "").replace(/\/?$/, "/");
   const apiUrl = (path) => `${projectPath}api/${path}`;
   const state = {
     modal: null, serviceId: "single-room", roomCode: "SR-1",
     date: manilaDate(), guestCount: 1, selectedTime: "",
     bookings: [], availabilityLoading: false, availabilityError: "",
+    therapists: [], therapistsLoading: false, therapistsError: "",
+    specialtyFilter: "", selectedTherapistId: "",
     bookingError: "", confirmation: null, manager: null, managerCsrfToken: "", deletingBookings: false,
+    paymentNotice: "",
     selectionMode: false, selectedBookingIds: [], bookingFields: {},
-    reportDate: manilaDate(), search: "", filter: "all", error: "",
+    reportDate: manilaDate(), search: "", filter: "all", paymentDate: "", error: "",
     guest: null, pendingServiceId: null, authMode: "login", authEmail: "",
     authMessage: "", authError: "", recaptchaSiteKey: "", emailConfigured: false,
     guestProfile: null, profileLoading: false, profileError: "",
   };
+  let therapistRequestSequence = 0;
   let overlay = document.getElementById("overlay-root");
   let modalNeedsEntrance = false;
   let captchaScriptPromise;
@@ -35,6 +41,11 @@
   const money = (amount) => `₱${Number(amount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   function manilaDate() {
     return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  }
+  function manilaTomorrow() {
+    const parts = manilaDate().split("-").map(Number);
+    const date = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] + 1));
+    return date.toISOString().slice(0, 10);
   }
   const formatTime = (time) => {
     const [hour, minute] = String(time || "").slice(0, 5).split(":").map(Number);
@@ -303,9 +314,18 @@
     const isReset = state.authMode === "reset";
     const needsEmail = isRegister || isVerify || isForgot || isReset;
     const title = isVerify ? "Verify your email" : isRegister ? "Create a guest account" : isForgot ? "Reset your password" : isReset ? "Choose a new password" : "Guest sign in";
+    const description = isVerify
+      ? "Enter the six-digit code we sent to your email to activate your account."
+      : isRegister
+        ? "Create an account to book treatments and keep your reservations together."
+        : isForgot
+          ? "Enter the email address linked to your verified account."
+          : isReset
+            ? "Enter your reset code and choose a new password for your account."
+            : "Welcome back. Sign in to manage your reservations and guest details.";
     const formFields = isVerify
       ? `<label class="field">Email address<input name="email" type="email" required value="${escapeHtml(state.authEmail)}" readonly></label><label class="field">Six-digit verification code<input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required></label>`
-      : `${isRegister ? '<label class="field">Full name<input name="fullName" autocomplete="name" required maxlength="35" title="Use letters and spaces only; maximum 35 characters"></label>' : ""}<label class="field">Email address<input name="email" type="email" autocomplete="email" required maxlength="254" value="${escapeHtml(state.authEmail)}" ${isReset ? "readonly" : ""}></label>${isForgot ? '<p class="password-help">We’ll send a six-digit reset code if this email belongs to a verified account.</p>' : ""}${isReset ? '<label class="field">Six-digit reset code<input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required></label>' : ""}${isRegister || isReset ? `<label class="field">${isReset ? "New password" : "Password"}<input name="password" type="password" autocomplete="new-password" minlength="12" maxlength="50" required><small>At least 12 characters. A unique 16+ character password is recommended.</small><span class="password-strength" data-password-strength><span class="password-strength-meter" aria-hidden="true"><span data-strength-fill></span></span><span class="password-strength-label" data-strength-label aria-live="polite">Recommended: use 16+ unique characters.</span></span></label><label class="field">Confirm password<input name="confirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="50" required></label>` : ""}${!isRegister && !isForgot && !isReset ? '<label class="field">Password<input name="password" type="password" autocomplete="current-password" maxlength="50" required><small>Use 12 to 50 characters.</small></label>' : ""}`;
+      : `${isRegister ? '<label class="field">Full name<input name="fullName" autocomplete="name" required maxlength="35" title="Use letters and spaces only; maximum 35 characters"></label>' : ""}<label class="field">Email address<input name="email" type="email" autocomplete="email" required maxlength="254" value="${escapeHtml(state.authEmail)}" ${isReset ? "readonly" : ""}></label>${isForgot ? '<p class="password-help">We’ll send a six-digit reset code if this email belongs to a verified account.</p>' : ""}${isReset ? '<label class="field">Six-digit reset code<input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required></label>' : ""}${isRegister || isReset ? `<label class="field">${isReset ? "New password" : "Password"}<span class="password-input-wrap"><input name="password" type="password" autocomplete="new-password" minlength="12" maxlength="50" required><button class="password-toggle" type="button" data-password-toggle aria-label="Show password" title="Show password" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-5.5 9.5-5.5 9.5 5.5 9.5 5.5-3.5 5.5-9.5 5.5S2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.8"/></svg></button></span><small>At least 12 characters. A unique 16+ character password is recommended.</small><span class="password-strength" data-password-strength><span class="password-strength-meter" aria-hidden="true"><span data-strength-fill></span></span><span class="password-strength-label" data-strength-label aria-live="polite">Recommended: use 16+ unique characters.</span></span></label><label class="field">Confirm password<span class="password-input-wrap"><input name="confirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="50" required><button class="password-toggle" type="button" data-password-toggle aria-label="Show confirm password" title="Show confirm password" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-5.5 9.5-5.5 9.5 5.5 9.5 5.5-3.5 5.5-9.5 5.5S2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.8"/></svg></button></span></label>` : ""}${!isRegister && !isForgot && !isReset ? '<label class="field">Password<span class="password-input-wrap"><input name="password" type="password" autocomplete="current-password" maxlength="50" required><button class="password-toggle" type="button" data-password-toggle aria-label="Show password" title="Show password" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-5.5 9.5-5.5 9.5 5.5 9.5 5.5-3.5 5.5-9.5 5.5S2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.8"/></svg></button></span><small>Use 12 to 50 characters.</small></label>' : ""}`;
     const controls = isVerify
       ? `<button class="button button-outline" type="button" data-action="auth-resend" ${state.emailConfigured ? "" : "disabled"}>Resend code</button><button class="button button-dark" type="submit">Verify email</button>`
       : `<button class="button button-dark" type="submit" ${(!state.emailConfigured && (isRegister || isForgot)) ? "disabled" : ""}>${!state.emailConfigured && (isRegister || isForgot) ? "Email not configured" : isRegister ? "Register" : isForgot ? "Send reset code" : isReset ? "Reset password" : "Sign in"}</button>`;
@@ -316,14 +336,78 @@
     } else if (isForgot || isReset) {
       authSwitch = '<p class="auth-switch"><button type="button" data-auth-mode="login">Back to sign in</button></p>';
     } else if (!isVerify) {
-      authSwitch = `${!isRegister ? '<p class="auth-switch"><button type="button" data-auth-mode="forgot">Forgot password?</button></p>' : ""}<p class="auth-switch">New to Bella Vista? <button type="button" data-auth-mode="register">Register</button></p>`;
+      authSwitch = '<div class="auth-switch auth-switch-login"><button type="button" data-auth-mode="forgot">Forgot password?</button><span>New to Bella Vista?</span><button type="button" data-auth-mode="register">Create an account</button></div>';
     }
     const emailSetupWarning = needsEmail && !state.emailConfigured
       ? '<p class="error-box" role="status">Email delivery is not configured yet. Verification and password reset codes cannot be sent. Ask the site administrator to complete the SMTP settings.</p>'
       : "";
-    renderOverlay(`<div class="overlay" data-action="overlay-close"><section class="dialog auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-title"><header class="dialog-header"><div><small>Bella Vista Oasis Spa · Guest Account</small><h2 id="auth-title">${title}</h2></div><button class="close-button" data-action="close" aria-label="Close account form">×</button></header><div class="dialog-content">${emailSetupWarning}${state.authMessage ? `<p class="success-box" role="status">${escapeHtml(state.authMessage)}</p>` : ""}${state.authError ? `<p class="error-box" role="alert">${escapeHtml(state.authError)}</p>` : ""}<form id="guest-auth-form"><div class="form-grid">${formFields}</div>${captcha}<div class="dialog-actions"><button class="button button-outline" type="button" data-action="close">Cancel</button>${controls}</div></form>${authSwitch}</div></section></div>`);
-    renderCaptcha(document.getElementById("guest-auth-form"));
-    if (isRegister || isReset) updatePasswordStrength(document.getElementById("guest-auth-form"));
+    renderOverlay(`<div class="overlay" data-action="overlay-close"><section class="dialog auth-dialog auth-dialog-${state.authMode}" role="dialog" aria-modal="true" aria-labelledby="auth-title"><header class="dialog-header auth-dialog-header"><div class="auth-dialog-heading"><span class="auth-dialog-mark" aria-hidden="true">BV</span><div><small>Guest account</small><h2 id="auth-title">${title}</h2><p class="auth-dialog-description">${description}</p></div></div><button class="close-button" data-action="close" aria-label="Close account form">×</button></header><div class="dialog-content auth-dialog-content">${emailSetupWarning}${state.authMessage ? `<p class="success-box" role="status">${escapeHtml(state.authMessage)}</p>` : ""}${state.authError ? `<p class="error-box" role="alert">${escapeHtml(state.authError)}</p>` : ""}<form id="guest-auth-form" class="auth-form"><div class="form-grid auth-form-grid">${formFields}</div>${captcha}<div class="dialog-actions auth-form-actions"><button class="button button-outline" type="button" data-action="close">Cancel</button>${controls}</div></form>${authSwitch}</div></section></div>`);
+    if (isRegister) {
+      const oldNameField = document.querySelector('#guest-auth-form [name="fullName"]')?.closest("label");
+      if (oldNameField) {
+        oldNameField.outerHTML = `<label class="field">First Name <span class="required-mark">*</span><input name="firstName" autocomplete="given-name" placeholder="e.g., Juan" required maxlength="35"></label><label class="field">Middle Name<input name="middleName" autocomplete="additional-name" placeholder="e.g., Santos (Optional)" maxlength="35"></label><label class="field">Last Name <span class="required-mark">*</span><input name="lastName" autocomplete="family-name" placeholder="e.g., Dela Cruz" required maxlength="35"></label>`;
+      }
+    }
+    const form = document.getElementById("guest-auth-form");
+    markRequiredFields(form);
+    form?.querySelectorAll(".field").forEach((label) => {
+      const marker = Array.from(label.children).find((child) => child.classList.contains("required-mark"));
+      const labelText = Array.from(label.childNodes).find((node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+      if (!marker || !labelText) return;
+      marker.textContent = "*";
+      marker.setAttribute("aria-hidden", "true");
+      const caption = document.createElement("span");
+      caption.className = "auth-field-label";
+      caption.append(document.createTextNode(labelText.textContent.trim()), marker);
+      labelText.replaceWith(caption);
+    });
+    applyExamplePlaceholders(form);
+    renderCaptcha(form);
+    if (isRegister || isReset) updatePasswordStrength(form);
+  }
+
+  function markRequiredFields(scope) {
+    if (!scope) return;
+    scope.querySelectorAll("input[required], select[required], textarea[required]").forEach((input) => {
+      const label = input.closest("label");
+      if (label && !label.querySelector(".required-mark")) {
+        const marker = document.createElement("span");
+        marker.className = "required-mark";
+        marker.textContent = "* ";
+        label.insertBefore(marker, label.firstChild);
+      }
+    });
+    if (scope.querySelector("[required]") && !scope.querySelector(".required-note")) {
+      const note = document.createElement("p");
+      note.className = "required-note";
+      note.innerHTML = '<span class="required-mark">*</span> Indicates required field';
+      scope.append(note);
+    }
+  }
+
+  function applyExamplePlaceholders(scope) {
+    if (!scope) return;
+    scope.querySelectorAll("input:not([type=hidden]), textarea").forEach((input) => {
+      if (input.placeholder) return;
+      const name = input.name || "";
+      if (input.type === "email" || /email/i.test(name)) input.placeholder = "e.g., juandelacruz@email.com";
+      else if (input.type === "tel" || /phone|contact/i.test(name)) input.placeholder = "e.g., 0917 123 4567";
+      else if (/firstName|FirstName/.test(name)) input.placeholder = "e.g., Juan";
+      else if (/middleName|MiddleName/.test(name)) input.placeholder = "e.g., Santos (Optional)";
+      else if (/lastName|LastName/.test(name)) input.placeholder = "e.g., Dela Cruz";
+      else if (/gcash_ref_number|reference/i.test(name)) input.placeholder = "e.g., 1002345678901";
+      else if (/code/i.test(name)) input.placeholder = "e.g., 123456";
+      else if (/password/i.test(name)) input.placeholder = "Enter your account password";
+      else if (/username/i.test(name)) input.placeholder = "e.g., spa.manager";
+      else if (input.type === "number") input.placeholder = "e.g., 2";
+      else if (input.type === "text") input.placeholder = "Enter a value";
+      else if (input.type === "date") input.placeholder = "Choose a date";
+    });
+    scope.querySelectorAll("textarea").forEach((textarea) => {
+      if (!textarea.placeholder) textarea.placeholder = /health|condition/i.test(textarea.name)
+        ? "e.g., Mild asthma, recent ankle sprain"
+        : "e.g., Prefer mild pressure on shoulders";
+    });
   }
 
   function updatePasswordStrength(form) {
@@ -426,16 +510,21 @@
       ? ""
       : `<section class="booking-block profile-settings-card"><div class="profile-section-heading"><div><small>ACCOUNT SECURITY</small><h3>${profile?.passwordChangePending ? "Verify password change" : "Change password"}</h3></div><span class="profile-section-icon" aria-hidden="true">01</span></div>${passwordSection}</section><section class="booking-block profile-settings-card"><div class="profile-section-heading"><div><small>EMAIL PREFERENCES</small><h3>${pendingEmail ? (emailChangeStage === "current" ? "Confirm current email" : "Verify new email") : "Change email address"}</h3></div><span class="profile-section-icon" aria-hidden="true">02</span></div>${emailSection}</section>`;
     renderOverlay(`<div class="overlay" data-action="overlay-close"><section class="dialog auth-dialog profile-dialog" role="dialog" aria-modal="true" aria-labelledby="profile-title"><header class="dialog-header"><div><small>Bella Vista Oasis Spa · Guest Account</small><h2 id="profile-title">Your guest dashboard</h2></div><button class="close-button" data-action="close" aria-label="Close guest dashboard">×</button></header><div class="dialog-content"><div class="profile-layout"><div class="profile-overview">${accountDetails}</div><div class="profile-security">${profileForms}</div></div><div class="profile-footer"><span>Your account details are protected.</span><div><button class="button button-outline" data-action="close">Close</button><button class="button button-outline" data-action="guest-logout">Sign out</button></div></div></div></section></div>`);
+    markRequiredFields(document.querySelector(".profile-dialog"));
+    applyExamplePlaceholders(document.querySelector(".profile-dialog"));
     updatePasswordStrength(document.getElementById("profile-password-form"));
   }
 
   function saveBookingFields(form) {
     const values = new FormData(form);
     state.bookingFields = {
-      guestName: values.get("guestName") || "",
+      guestFirstName: values.get("guestFirstName") || "",
+      guestMiddleName: values.get("guestMiddleName") || "",
+      guestLastName: values.get("guestLastName") || "",
       guestEmail: values.get("guestEmail") || "",
       guestPhone: values.get("guestPhone") || "",
       specialRequests: values.get("specialRequests") || "",
+      healthOthers: values.get("healthOthers") || "",
       noKnownConditions: values.has("noKnownConditions"),
       healthAgreed: values.has("healthAgreed"),
       termsAccepted: values.has("termsAccepted"),
@@ -455,6 +544,9 @@
     state.serviceId = service.id;
     state.roomCode = service.rooms[0];
     state.date = manilaDate();
+    if (!currentSlots().some((slot) => slot.available)) {
+      state.date = manilaTomorrow();
+    }
     state.guestCount = service.minGuests;
     state.selectedTime = "";
     state.bookingError = "";
@@ -462,6 +554,11 @@
     state.confirmation = null;
     state.bookings = [];
     state.availabilityError = "";
+    state.therapists = [];
+    state.therapistsLoading = true;
+    state.therapistsError = "";
+    state.specialtyFilter = "";
+    state.selectedTherapistId = "";
     renderBooking();
     void loadAvailability();
   }
@@ -493,16 +590,54 @@
     state.availabilityLoading = true;
     state.availabilityError = "";
     state.bookings = [];
+    state.therapists = [];
+    state.therapistsLoading = true;
+    state.therapistsError = "";
     renderBooking();
+    void loadTherapists();
     try {
       const result = await request(`availability.php?date=${encodeURIComponent(state.date)}&roomCode=${encodeURIComponent(state.roomCode)}`);
       state.bookings = result.bookings;
       state.availabilityLoading = false;
       const firstAvailable = currentSlots().find((slot) => slot.available);
       if (!currentSlots().some((slot) => slot.available && slot.startTime === state.selectedTime)) state.selectedTime = firstAvailable?.startTime || "";
+      void loadTherapists();
     } catch (error) {
       state.availabilityLoading = false;
       state.availabilityError = error.message;
+    }
+    renderBooking();
+  }
+
+  async function loadTherapists() {
+    const requestSequence = ++therapistRequestSequence;
+    state.therapistsLoading = true;
+    state.therapistsError = "";
+    try {
+      const duration = serviceById[state.serviceId].duration;
+      const endTime = state.selectedTime
+        ? (() => {
+          const [hour, minute] = state.selectedTime.split(":").map(Number);
+          const endMinutes = hour * 60 + minute + duration;
+          return `${String(Math.floor(endMinutes / 60)).padStart(2, "0")}:${String(endMinutes % 60).padStart(2, "0")}`;
+        })()
+        : "";
+      const query = new URLSearchParams({ date: state.date });
+      if (state.selectedTime) {
+        query.set("startTime", state.selectedTime);
+        query.set("endTime", endTime);
+      }
+      const result = await request(`therapists.php?${query.toString()}`);
+      if (requestSequence !== therapistRequestSequence) return;
+      state.therapists = result.therapists;
+      state.therapistsLoading = false;
+      if (!state.therapists.some((therapist) => therapist.id === state.selectedTherapistId && therapist.isAvailable)) {
+        state.selectedTherapistId = "";
+      }
+    } catch (error) {
+      if (requestSequence !== therapistRequestSequence) return;
+      state.therapistsLoading = false;
+      state.therapistsError = error.message;
     }
     renderBooking();
   }
@@ -513,30 +648,50 @@
     if (state.confirmation) {
       const booking = state.confirmation;
       const gcashQrUrl = escapeHtml(window.gcashQrCodeUrl || `${projectPath}assets/images/gcash-qr-code.jpg`);
-      renderOverlay(`<div class="overlay" data-action="overlay-close"><section class="dialog booking-dialog booking-confirmation-dialog" role="dialog" aria-modal="true" aria-labelledby="booking-title"><header class="dialog-header"><div><small>Bella Vista Oasis Spa · Sanctuary Booking</small><h2 id="booking-title">${isManagerRoute ? "Reservation Confirmed" : "Booking Submitted"}</h2></div><button class="close-button" data-action="close" aria-label="Close">×</button></header><div class="dialog-content"><div class="success-box"><strong>${isManagerRoute ? "Your treatment is reserved." : "Your booking is On Progress while our team verifies your GCash payment."}</strong><p>Booking code: <strong>${escapeHtml(booking.bookingCode)}</strong></p><p>${escapeHtml(booking.guestName)} · ${escapeHtml(booking.serviceName)} · ${escapeHtml(booking.roomCode)}</p><p>${escapeHtml(booking.bookingDate)} at ${escapeHtml(formatTime(booking.startTime))} · ${money(booking.totalAmount)}</p></div>${!isManagerRoute ? `<section class="confirmation-payment" aria-labelledby="confirmation-payment-title"><div class="confirmation-payment-copy"><p class="eyebrow">Pay securely with GCash</p><h3 id="confirmation-payment-title">Scan to pay your booking total</h3><p>Open GCash and scan the QR code. Pay the exact amount below, then continue to submit your 13-digit reference number and receipt for staff verification.</p><strong class="confirmation-payment-amount">${money(booking.totalAmount)}</strong></div><a class="confirmation-qr-link" href="${gcashQrUrl}" target="_blank" rel="noopener" aria-label="Open the GCash QR code at full size"><img src="${gcashQrUrl}" alt="GCash QR code for Bella Vista Oasis Spa"></a><div class="confirmation-account"><strong>Confirm the recipient</strong><span>Account Name: ED**R SO**Y P.</span><span>Mobile No.: +63 997 695 ••••</span><span>User ID: ••••••••••WP8W1O</span></div><a class="button button-dark confirmation-payment-button" href="${escapeHtml(projectPath)}checkout_gcash.php?order_id=${encodeURIComponent(booking.bookingCode)}">Continue to payment submission</a></section>` : ""}<div class="dialog-actions"><button class="button button-outline" data-action="print">Print confirmation</button><button class="button button-dark" data-action="close">Done</button></div></div></section></div>`);
+      renderOverlay(`<div class="overlay" data-action="overlay-close"><section class="dialog booking-dialog booking-confirmation-dialog" role="dialog" aria-modal="true" aria-labelledby="booking-title"><header class="dialog-header"><div><small>Bella Vista Oasis Spa · Sanctuary Booking</small><h2 id="booking-title">${isManagerRoute ? "Reservation Confirmed" : "Booking Submitted"}</h2></div><button class="close-button" data-action="close" aria-label="Close">×</button></header><div class="dialog-content"><div class="success-box"><strong>${isManagerRoute ? "Your treatment is reserved." : "Your booking is On Progress while our team verifies your GCash payment."}</strong><p>Booking code: <strong>${escapeHtml(booking.bookingCode)}</strong></p><p>${escapeHtml(booking.guestName)} · ${escapeHtml(booking.serviceName)} · ${escapeHtml(booking.roomCode)}</p><p>Therapist: ${escapeHtml(booking.therapistName || "Not assigned")}</p><p>${escapeHtml(booking.bookingDate)} at ${escapeHtml(formatTime(booking.startTime))} · ${money(booking.totalAmount)}</p></div>${!isManagerRoute ? `<section class="confirmation-payment" aria-labelledby="confirmation-payment-title"><div class="confirmation-payment-copy"><p class="eyebrow">Pay securely with GCash</p><h3 id="confirmation-payment-title">Scan to pay your booking total</h3><p>Open GCash and scan the QR code. Pay the exact amount below, then continue to submit your 13-digit reference number and receipt for staff verification.</p><strong class="confirmation-payment-amount">${money(booking.totalAmount)}</strong></div><a class="confirmation-qr-link" href="${gcashQrUrl}" target="_blank" rel="noopener" aria-label="Open the GCash QR code at full size"><img src="${gcashQrUrl}" alt="GCash QR code for Bella Vista Oasis Spa"></a><div class="confirmation-account"><strong>Confirm the recipient</strong><span>Account Name: ED**R SO**Y P.</span><span>Mobile No.: +63 997 695 ••••</span><span>User ID: ••••••••••WP8W1O</span></div><a class="button button-dark confirmation-payment-button" href="${escapeHtml(projectPath)}checkout_gcash.php?order_id=${encodeURIComponent(booking.bookingCode)}">Continue to payment submission</a></section>` : ""}<div class="dialog-actions"><button class="button button-outline" data-action="print">Print confirmation</button><button class="button button-dark" data-action="close">Done</button></div></div></section></div>`);
       return;
     }
     const service = serviceById[state.serviceId];
     const slots = currentSlots();
     const roomOptions = service.rooms.map((code) => `<option value="${code}" ${state.roomCode === code ? "selected" : ""}>${code} — ${roomNames[code]}</option>`).join("");
+    const specialties = [...new Set(state.therapists.flatMap((therapist) => therapist.specialties))].sort((a, b) => a.localeCompare(b));
+    const specialtyOptions = specialties.map((specialty) => `<option value="${escapeHtml(specialty)}" ${state.specialtyFilter === specialty ? "selected" : ""}>${escapeHtml(specialty)}</option>`).join("");
+    const filteredTherapists = state.therapists.filter((therapist) => !state.specialtyFilter || therapist.specialties.includes(state.specialtyFilter));
+    const therapistOptions = filteredTherapists.map((therapist) => `<option value="${escapeHtml(therapist.id)}" ${state.selectedTherapistId === therapist.id ? "selected" : ""} ${therapist.isAvailable ? "" : "disabled"}>${escapeHtml(therapist.name)} — ${escapeHtml(therapist.availabilityStatus || (therapist.isAvailable ? "Available" : "Unavailable"))}</option>`).join("");
+    const therapistAvailability = filteredTherapists.length
+      ? `<div class="therapist-availability-summary" role="status"><div class="therapist-availability-summary-heading"><strong>Availability for ${escapeHtml(state.date)}</strong><span>${state.selectedTime ? ` · ${escapeHtml(formatTime(state.selectedTime))}` : " · Select a session time"}</span></div><ul>${filteredTherapists.map((therapist) => `<li><span><strong>${escapeHtml(therapist.name)}</strong><small>${escapeHtml(therapist.specialties.join(", "))}</small></span><span class="therapist-availability-status ${therapist.isAvailable ? "available" : "unavailable"}">${escapeHtml(therapist.availabilityStatus || (therapist.isAvailable ? "Available" : "Unavailable"))}</span></li>`).join("")}</ul></div>`
+      : '<p class="therapist-availability-empty">No therapists match this specialty. Choose another specialty to see the roster.</p>';
+    const therapistControls = state.therapistsError
+      ? `<p class="error-box" role="alert">${escapeHtml(state.therapistsError)}</p>`
+      : state.therapistsLoading
+        ? '<p class="booking-step-note" role="status">Checking therapist availability…</p>'
+        : `<label class="field">Filter by specialty<select name="specialtyFilter" id="booking-specialty"><option value="">All specialties</option>${specialtyOptions}</select></label><label class="field full">Choose your therapist<select name="therapistId" id="booking-therapist" required><option value="">Select an available therapist</option>${therapistOptions}</select><small>Unavailable therapists remain visible with a reason, but cannot be selected.</small></label>${therapistAvailability}`;
     const slotHtml = slots.length ? slots.map((slot) => `<button type="button" class="slot${slot.conflict ? " booked" : ""}${slot.startTime === state.selectedTime ? " selected" : ""}" data-action="slot" data-time="${slot.startTime}" ${(!slot.available || state.availabilityLoading || Boolean(state.availabilityError)) ? "disabled" : ""}>${formatTime(slot.startTime)} – ${formatTime(slot.endTime)}${slot.conflict ? " · Already booked" : ""}</button>`).join("") : "<p>There are no sessions for this service on this date.</p>";
     const guestOptions = Array.from({ length: service.maxGuests - service.minGuests + 1 }, (_, index) => service.minGuests + index).map((count) => `<option value="${count}" ${state.guestCount === count ? "selected" : ""}>${count} ${count === 1 ? "guest" : "guests"}${count > service.minGuests ? ` (+${money((count - service.minGuests) * service.extra)} fee)` : ""}</option>`).join("");
     const managerGuestDetails = isManagerRoute
-      ? `<section class="booking-block booking-step-card booking-walkin-card"><h3><span class="booking-step-number">01</span><span><small>WALK-IN GUEST</small>Enter guest contact details</span></h3><p class="booking-step-note">Add the guest’s name and email before completing the reservation.</p><div class="form-grid"><label class="field">Guest name<input name="guestName" autocomplete="name" required maxlength="35" title="Use letters and spaces only; maximum 35 characters" value="${escapeHtml(state.bookingFields.guestName)}"></label><label class="field">Guest email<input name="guestEmail" type="email" autocomplete="email" required maxlength="254" value="${escapeHtml(state.bookingFields.guestEmail)}"></label><label class="field">Phone number<input name="guestPhone" type="tel" autocomplete="tel" required maxlength="13" pattern="\\+63[0-9]{10}" placeholder="+639171234567" title="Enter a Philippines mobile number in +63 format" value="${escapeHtml(state.bookingFields.guestPhone || "+63")}"></label><label class="field full">Special requests or additional health details<textarea name="specialRequests" maxlength="2000">${escapeHtml(state.bookingFields.specialRequests)}</textarea></label></div></section>`
+      ? `<section class="booking-block booking-step-card booking-walkin-card"><h3><span class="booking-step-number">01</span><span><small>WALK-IN GUEST</small>Enter guest contact details</span></h3><p class="booking-step-note">Add the guest’s name and email before completing the reservation.</p><div class="form-grid"><label class="field">First Name <span class="required-mark">*</span><input name="guestFirstName" autocomplete="given-name" placeholder="e.g., Juan" required maxlength="35" value="${escapeHtml(state.bookingFields.guestFirstName)}"></label><label class="field">Middle Name<input name="guestMiddleName" autocomplete="additional-name" placeholder="e.g., Santos (Optional)" maxlength="35" value="${escapeHtml(state.bookingFields.guestMiddleName)}"></label><label class="field">Last Name <span class="required-mark">*</span><input name="guestLastName" autocomplete="family-name" placeholder="e.g., Dela Cruz" required maxlength="35" value="${escapeHtml(state.bookingFields.guestLastName)}"></label><label class="field">Guest email <span class="required-mark">*</span><input name="guestEmail" type="email" autocomplete="email" placeholder="e.g., juandelacruz@email.com" required maxlength="254" value="${escapeHtml(state.bookingFields.guestEmail)}"></label><label class="field">Contact number <span class="required-mark">*</span><input name="guestPhone" type="tel" autocomplete="tel" required maxlength="13" pattern="\\+63[0-9]{10}" placeholder="e.g., +63 917 123 4567" title="Enter a Philippines mobile number in +63 format" value="${escapeHtml(state.bookingFields.guestPhone || "+63")}"></label><label class="field full">Special requests or additional health details<textarea name="specialRequests" maxlength="2000" placeholder="e.g., Prefer mild pressure on shoulders">${escapeHtml(state.bookingFields.specialRequests)}</textarea></label></div></section>`
       : "";
     renderOverlay(`<div class="overlay" data-action="overlay-close"><section class="dialog booking-dialog" role="dialog" aria-modal="true" aria-labelledby="booking-title"><header class="dialog-header"><div><small>Sanctuary Booking Experience</small><h2 id="booking-title">Reserve Treatment Suite</h2><p class="booking-header-note">A few thoughtful details help us prepare your visit.</p></div><button class="close-button" data-action="close" aria-label="Close booking dialog">×</button></header><div class="dialog-content">
       ${state.bookingError ? `<div class="error-box" role="alert">${escapeHtml(state.bookingError)}</div>` : ""}
       <form id="booking-form">
         <div class="booking-intro"><span class="booking-intro-mark" aria-hidden="true">BV</span><p>Reserve a quiet moment in the sanctuary. Complete each step below to confirm your treatment.</p></div>
         ${managerGuestDetails}
-        <section class="booking-block booking-step-card"><h3><span class="booking-step-number">${isManagerRoute ? "02" : "01"}</span><span><small>TREATMENT</small>Choose a treatment and room</span></h3><div class="form-grid"><label class="field full">Treatment<select name="serviceId" id="booking-service">${serviceList.map((item) => `<option value="${item.id}" ${item.id === state.serviceId ? "selected" : ""}>${escapeHtml(item.name)} — ${money(item.base)}</option>`).join("")}</select></label><label class="field">Treatment room<select name="roomCode" id="booking-room">${roomOptions}</select></label><label class="field">Number of guests<select name="guestCount" id="booking-guests">${guestOptions}</select></label></div><p class="booking-step-note">${escapeHtml(service.label)} · Base rate ${money(service.base)}${service.extra ? ` · ${money(service.extra)} per extra guest` : ""}</p></section>
+        <section class="booking-block booking-step-card"><h3><span class="booking-step-number">${isManagerRoute ? "02" : "01"}</span><span><small>TREATMENT</small>Choose a treatment, room, and therapist</span></h3><div class="form-grid"><label class="field full">Treatment<select name="serviceId" id="booking-service">${serviceList.map((item) => `<option value="${item.id}" ${item.id === state.serviceId ? "selected" : ""}>${escapeHtml(item.name)} — ${money(item.base)}</option>`).join("")}</select></label><label class="field">Treatment room<select name="roomCode" id="booking-room">${roomOptions}</select></label><label class="field">Number of guests<select name="guestCount" id="booking-guests">${guestOptions}</select></label>${therapistControls}</div><p class="booking-step-note">${escapeHtml(service.label)} · Base rate ${money(service.base)}${service.extra ? ` · ${money(service.extra)} per extra guest` : ""}</p></section>
         <section class="booking-block booking-step-card"><h3><span class="booking-step-number">${isManagerRoute ? "03" : "02"}</span><span><small>APPOINTMENT</small>Choose date and time</span></h3><div class="form-grid"><label class="field">Reservation date<input type="date" name="bookingDate" id="booking-date" min="${manilaDate()}" value="${escapeHtml(state.date)}" required></label><div class="booking-session-note"><strong>Sessions for ${escapeHtml(state.roomCode)}</strong><p class="muted">${escapeHtml(service.label)} plus 30-minute sanitization</p></div></div>${state.availabilityError ? `<div class="error-box" role="alert">${escapeHtml(state.availabilityError)}</div>` : ""}${state.availabilityLoading ? "<p>Checking availability…</p>" : `<div class="slot-grid">${slotHtml}</div>`}${!state.availabilityLoading && !state.availabilityError && !slots.some((slot) => slot.available) ? "<p>No sessions are available. Choose another date or room.</p>" : ""}</section>
         <section class="booking-block booking-step-card booking-health-card"><h3><span class="booking-step-number">${isManagerRoute ? "04" : "03"}</span><span><small>WELLBEING &amp; POLICIES</small>Health declaration and policies</span></h3><p>Please indicate any conditions so the therapist can prepare appropriately.</p><div class="form-grid"><label class="check-row"><input type="checkbox" name="noKnownConditions" value="yes" ${state.bookingFields.noKnownConditions ? "checked" : ""}> I have no known medical conditions or treatment sensitivities.</label><label class="check-row"><input type="checkbox" name="healthConditions" value="Allergies" ${state.bookingFields.healthConditions?.includes("Allergies") ? "checked" : ""}> Allergies</label><label class="check-row"><input type="checkbox" name="healthConditions" value="Skin sensitivities" ${state.bookingFields.healthConditions?.includes("Skin sensitivities") ? "checked" : ""}> Skin sensitivities</label><label class="check-row"><input type="checkbox" name="healthConditions" value="Chronic condition or high blood pressure" ${state.bookingFields.healthConditions?.includes("Chronic condition or high blood pressure") ? "checked" : ""}> Chronic condition or high blood pressure</label><label class="check-row"><input type="checkbox" name="healthConditions" value="Recent surgery or injury" ${state.bookingFields.healthConditions?.includes("Recent surgery or injury") ? "checked" : ""}> Recent surgery or injury</label><label class="check-row"><input type="checkbox" name="healthConditions" value="Pregnancy" ${state.bookingFields.healthConditions?.includes("Pregnancy") ? "checked" : ""}> Pregnancy</label></div><label class="check-row"><input type="checkbox" name="healthAgreed" required ${state.bookingFields.healthAgreed ? "checked" : ""}> I have truthfully declared my health information and will consult the therapist before treatment.</label><label class="check-row"><input type="checkbox" name="termsAccepted" required ${state.bookingFields.termsAccepted ? "checked" : ""}> I agree to the guest policies, including arrival, cancellation, and quiet-environment policies.</label></section>
         ${!isManagerRoute ? `<section class="booking-block booking-step-card booking-guest-details"><h3><span class="booking-step-number">04</span><span><small>GUEST DETAILS</small>Contact details</span></h3><div class="booking-guest-note"><span class="booking-guest-icon" aria-hidden="true">${escapeHtml((state.guest?.name || "G").trim().charAt(0).toUpperCase())}</span><p>Booking as <strong>${escapeHtml(state.guest?.name)}</strong><small>Your verified account email will be attached to this reservation.</small></p></div><div class="form-grid"><label class="field">Phone number<input name="guestPhone" type="tel" autocomplete="tel" required maxlength="13" pattern="\\+63[0-9]{10}" placeholder="+639171234567" title="Enter a Philippines mobile number in +63 format" value="${escapeHtml(state.bookingFields.guestPhone || "+63")}"></label><label class="field full">Special requests or additional health details<textarea name="specialRequests" maxlength="2000">${escapeHtml(state.bookingFields.specialRequests)}</textarea></label></div></section>` : ""}
         <section class="booking-block booking-step-card booking-security-card"><h3><span class="booking-step-number">05</span><span><small>FINAL STEP</small>Security check</span></h3><div class="captcha-slot" data-captcha></div></section>
         <div class="booking-submit-bar"><p><small>ESTIMATED TOTAL</small><strong>${money(service.base + Math.max(0, state.guestCount - service.minGuests) * service.extra)}</strong></p><div class="dialog-actions"><button type="button" class="button button-outline" data-action="close">Cancel</button><button type="submit" class="button button-dark" ${state.availabilityLoading ? "disabled" : ""}>Confirm reservation</button></div></div>
       </form></div></section></div>`);
-    renderCaptcha(document.getElementById("booking-form"));
+    const bookingForm = document.getElementById("booking-form");
+    const healthGrid = bookingForm?.querySelector(".booking-health-card .form-grid");
+    if (healthGrid && !healthGrid.querySelector('[name="healthConditions"][value="Others"]')) {
+      healthGrid.insertAdjacentHTML("beforeend", `<label class="check-row"><input type="checkbox" name="healthConditions" value="Others" ${state.bookingFields.healthConditions?.includes("Others") ? "checked" : ""}> Others</label>`);
+      healthGrid.insertAdjacentHTML("afterend", `<label class="field full health-others-field" ${state.bookingFields.healthConditions?.includes("Others") ? "" : "hidden"}>Other health condition <span class="required-mark">*</span><input name="healthOthers" maxlength="500" placeholder="e.g., High blood pressure, pregnant, skin allergy" value="${escapeHtml(state.bookingFields.healthOthers)}" ${state.bookingFields.healthConditions?.includes("Others") ? "required" : ""}></label>`);
+    }
+    markRequiredFields(bookingForm);
+    applyExamplePlaceholders(bookingForm);
+    renderCaptcha(bookingForm);
   }
 
   function showManagerShell() {
@@ -558,7 +713,46 @@
   function renderLogin(error = "") {
     const main = document.getElementById("manager-main");
     if (!main) return;
-    main.innerHTML = `<section class="login-card"><p class="eyebrow">Staff access</p><h1>Manager sign in</h1><p>Sign in to manage reservations, treatment rooms, and staff assignments.</p>${error ? `<div class="error-box" role="alert">${escapeHtml(error)}</div>` : ""}<form id="manager-login"><label class="field">Username<input name="username" autocomplete="username" required></label><label class="field" style="margin-top:14px">Password<input type="password" name="password" autocomplete="current-password" maxlength="50" required></label><div class="captcha-slot" data-captcha></div><button class="button button-dark" style="width:100%;margin-top:18px">Sign in</button></form></section>`;
+    main.classList.remove("manager-active");
+    delete main.dataset.managerPage;
+    main.innerHTML = `<section class="login-card"><p class="eyebrow">Staff access</p><h1>Manager sign in</h1><p>Sign in to manage reservations, treatment rooms, and staff assignments.</p>${error ? `<div class="error-box" role="alert">${escapeHtml(error)}</div>` : ""}<form id="manager-login"><label class="field">Username<input name="username" autocomplete="username" required></label><label class="field" style="margin-top:14px">Password<span class="password-input-wrap"><input type="password" name="password" autocomplete="current-password" maxlength="50" required><button class="password-toggle" type="button" data-password-toggle aria-label="Show password" title="Show password" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-5.5 9.5-5.5 9.5 5.5 9.5 5.5-3.5 5.5-9.5 5.5S2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.8"/></svg></button></span></label><div class="captcha-slot" data-captcha></div><button class="button button-dark" style="width:100%;margin-top:18px">Sign in</button></form></section>`;
+    const loginCard = main.querySelector(".login-card");
+    const eyebrow = loginCard?.querySelector(".eyebrow");
+    const heading = loginCard?.querySelector("h1");
+    const intro = heading?.nextElementSibling;
+    const loginForm = loginCard?.querySelector("#manager-login");
+    if (loginCard && eyebrow && heading && intro && loginForm) {
+      const loginHeader = document.createElement("header");
+      loginHeader.className = "staff-login-header";
+      loginHeader.innerHTML = '<span class="staff-login-mark" aria-hidden="true">BV</span>';
+      const identity = document.createElement("div");
+      identity.append(eyebrow, heading, intro);
+      loginHeader.append(identity);
+
+      const loginBody = document.createElement("div");
+      loginBody.className = "staff-login-body";
+      const loginError = loginCard.querySelector(".error-box");
+      if (loginError) loginBody.append(loginError);
+      loginBody.append(loginForm);
+      loginCard.classList.add("staff-login-card");
+      loginCard.replaceChildren(loginHeader, loginBody);
+      const labels = loginForm.querySelectorAll(".field");
+      labels.forEach((label) => {
+        const labelText = Array.from(label.childNodes).find((node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+        if (!labelText) return;
+        const caption = document.createElement("span");
+        caption.className = "field-label-row";
+        caption.textContent = labelText.textContent.trim();
+        const marker = document.createElement("span");
+        marker.className = "required-mark";
+        marker.setAttribute("aria-hidden", "true");
+        marker.textContent = "*";
+        caption.append(marker);
+        labelText.replaceWith(caption);
+      });
+    }
+    markRequiredFields(document.getElementById("manager-login"));
+    applyExamplePlaceholders(document.getElementById("manager-login"));
     renderCaptcha(document.getElementById("manager-login"));
   }
 
@@ -626,11 +820,17 @@
         const blockedConfirmation = status === "confirmed" && needsPaymentVerification;
         return `<option value="${status}" ${status === item.status ? "selected" : ""} ${blockedConfirmation ? "disabled" : ""}>${escapeHtml(statusLabel(status))}${blockedConfirmation ? " — verify payment first" : ""}</option>`;
       }).join("");
-      return `<tr>${selectionCell}<td><strong>${escapeHtml(item.bookingCode)}</strong></td><td>${escapeHtml(formatTime(item.startTime))} – ${escapeHtml(formatTime(item.endTime))}<br><small>Sanitize until ${escapeHtml(formatTime(item.cleaningEndTime))}</small></td><td>${escapeHtml(item.roomCode)}<br>${escapeHtml(item.serviceName)}</td><td>${escapeHtml(item.guestName)}<br><small>${escapeHtml(item.guestPhone)} · ${escapeHtml(item.guestEmail)}</small></td><td>${escapeHtml(item.guestCount)} guest(s)</td><td><select data-action="therapist" data-appointment="${escapeHtml(item.id)}"><option value="">Unassigned</option>${state.manager.therapists.map((therapist) => `<option value="${escapeHtml(therapist.id)}" ${item.therapistId === therapist.id ? "selected" : ""}>${escapeHtml(therapist.name)}</option>`).join("")}</select></td><td>${money(item.totalAmount)}</td><td>${escapeHtml(item.paymentStatus || "Not submitted")}</td><td><span class="status ${escapeHtml(item.status)}">${escapeHtml(statusLabel(item.status))}</span><select data-action="status" data-appointment="${escapeHtml(item.id)}">${statusOptionHtml}</select>${needsPaymentVerification ? '<small class="status-help">Approve the GCash payment to confirm automatically.</small>' : ""}</td></tr>`;
+      const availableTherapistIds = item.availableTherapistIds || [];
+      const therapistOptions = state.manager.therapists
+        .filter((therapist) => availableTherapistIds.includes(therapist.id))
+        .map((therapist) => `<option value="${escapeHtml(therapist.id)}" ${item.therapistId === therapist.id ? "selected" : ""}>${escapeHtml(therapist.name)}</option>`)
+        .join("");
+      const guestNotes = [item.specialRequests, item.healthOthers ? `Other health declaration: ${item.healthOthers}` : ""].filter(Boolean).join(" · ");
+      return `<tr>${selectionCell}<td><strong>${escapeHtml(item.bookingCode)}</strong></td><td>${escapeHtml(formatTime(item.startTime))} – ${escapeHtml(formatTime(item.endTime))}<br><small>Sanitize until ${escapeHtml(formatTime(item.cleaningEndTime))}</small></td><td>${escapeHtml(item.roomCode)}<br>${escapeHtml(item.serviceName)}</td><td>${escapeHtml(item.guestName)}<br><small>${escapeHtml(item.guestPhone)} · ${escapeHtml(item.guestEmail)}</small>${guestNotes ? `<br><small><strong>Notes:</strong> ${escapeHtml(guestNotes)}</small>` : ""}</td><td>${escapeHtml(item.guestCount)} guest(s)</td><td><select data-action="therapist" data-appointment="${escapeHtml(item.id)}"><option value="">Unassigned</option>${therapistOptions}</select></td><td>${money(item.totalAmount)}</td><td>${escapeHtml(item.paymentStatus || "Not submitted")}</td><td><span class="status ${escapeHtml(item.status)}">${escapeHtml(statusLabel(item.status))}</span><select data-action="status" data-appointment="${escapeHtml(item.id)}">${statusOptionHtml}</select>${needsPaymentVerification ? '<small class="status-help">Approve the GCash payment to confirm automatically.</small>' : ""}</td></tr>`;
     }).join("");
     const therapistCards = state.manager.therapists.map((therapist) => {
       const statusLabel = therapist.status === "in_session" ? "In session" :
-        therapist.status === "assigned" ? "Assigned" : "Available";
+        therapist.status === "assigned" ? "Assigned" : therapist.isAvailable ? "Available" : "Unavailable";
       const assignment = therapist.assignedBookingCode
         ? `<p class="therapist-assignment">Booking ${escapeHtml(therapist.assignedBookingCode)}${therapist.assignedBookingStartTime ? ` · ${escapeHtml(formatTime(therapist.assignedBookingStartTime))}` : ""}${therapist.assignedBookingCount > 1 ? ` · ${therapist.assignedBookingCount} bookings today` : ""}</p>`
         : `<p class="therapist-assignment">No bookings assigned for this date</p>`;
@@ -644,19 +844,138 @@
     const selectionHint = state.selectionMode
       ? "Select one or more bookings, then choose Delete selected."
       : "Use Select to delete to choose specific bookings.";
-    main.innerHTML = `<div class="notice manager-notice" data-manager-notice role="status" ${state.error ? "" : "hidden"}>${escapeHtml(state.error)}</div><div class="manager-wrap"><div class="dashboard-title"><div><p class="eyebrow">Operations &amp; Scheduling Console</p><h1>Sanctuary Manager Dashboard</h1><small data-manager-clock>Current spa time (Manila): ${escapeHtml(new Intl.DateTimeFormat("en-PH", { timeZone: "Asia/Manila", dateStyle: "medium", timeStyle: "short" }).format(new Date(state.manager.serverNow)))}</small></div><div class="dashboard-actions"><button class="button button-outline" data-action="refresh-manager" type="button">Refresh</button><a class="button button-outline" href="${escapeHtml(projectPath)}admin_payments.php">GCash payments</a><button class="button button-dark" data-action="walkin">Create Walk-In Booking</button><button class="button button-outline" data-action="logout" type="button">Sign out</button></div></div>
+    main.innerHTML = `<div class="notice manager-notice" data-manager-notice role="status" ${state.error || state.paymentNotice ? "" : "hidden"}>${escapeHtml(state.error || state.paymentNotice)}</div><div class="manager-wrap"><div class="dashboard-title"><div><p class="eyebrow">Operations &amp; Scheduling Console</p><h1>Sanctuary Manager Dashboard</h1><small data-manager-clock>Current spa time (Manila): ${escapeHtml(new Intl.DateTimeFormat("en-PH", { timeZone: "Asia/Manila", dateStyle: "medium", timeStyle: "short" }).format(new Date(state.manager.serverNow)))}</small></div><div class="dashboard-actions"><button class="button button-outline" data-action="refresh-manager" type="button">Refresh</button><button class="button button-dark" data-action="walkin">Create Walk-In Booking</button><button class="button button-outline" data-action="logout" type="button">Sign out</button></div></div>
       <section class="metrics"><article class="metric"><small>Calculated revenue</small><strong>${money(revenue)}</strong><span>For ${escapeHtml(state.reportDate)}</span></article><article class="metric"><small>Total guests scheduled</small><strong>${guests}</strong><span>${allAppointments.length} bookings</span></article><article class="metric"><small>Active / in session</small><strong>${inSession}</strong><span>${cleaning} rooms sanitizing</span></article><article class="metric"><small>Therapists</small><strong>${state.manager.therapists.length}</strong><span>${therapistsInSession} in session · ${therapistsAssigned} assigned</span></article></section>
       <section class="panel"><h2>Room &amp; 30-Minute Sanitization Status</h2><div class="room-grid">${state.manager.rooms.map((room) => `<article class="room"><strong>${escapeHtml(room.code)} · ${escapeHtml(room.status.replace("_", " "))}</strong><p>${escapeHtml(room.name)}<br>Capacity: ${escapeHtml(room.capacity)} guests</p>${room.currentBookingId ? `<small>${escapeHtml(room.currentBookingId)}</small>` : ""}</article>`).join("")}</div></section>
       <section class="panel"><h2>Therapist Availability &amp; Assignments</h2><div class="therapist-status-grid">${therapistCards || `<p>No therapists are configured.</p>`}</div></section>
       <section class="panel"><h2>Reservations &amp; Therapist Assignment</h2><div class="form-grid"><label class="field">Report date<input class="control" id="report-date" type="date" value="${escapeHtml(state.reportDate)}"></label><label class="field">Search guest or booking code<input class="control" id="manager-search" value="${escapeHtml(state.search)}" placeholder="Name, code or room"></label><div class="status-filter-group"><label class="field" for="manager-filter">Status filter</label><div class="status-filter-controls"><select class="control" id="manager-filter"><option value="all">All statuses</option>${statusOptions.map((status) => `<option value="${status}" ${state.filter === status ? "selected" : ""}>${escapeHtml(statusLabel(status))}</option>`).join("")}</select>${deletionControls}<button class="button button-outline manager-delete-button" data-action="delete-filtered" type="button" ${state.filter === "all" || !state.manager.appointments.some((item) => item.status === state.filter) || state.deletingBookings ? "disabled" : ""}>Delete filtered</button><button class="button button-outline manager-delete-button" data-action="delete-all" type="button" ${!state.manager.appointments.length || state.deletingBookings ? "disabled" : ""}>Delete all</button></div><small>${selectionHint} Deletion also removes linked GCash records and receipt files.</small></div></div><div class="table-wrap"><table><thead><tr>${selectionColumnHeader}<th>Booking code</th><th>Time &amp; 30m gap</th><th>Room</th><th>Guest</th><th>Party</th><th>Therapist</th><th>Amount</th><th>Payment</th><th>Status</th></tr></thead><tbody>${rows || `<tr><td colspan="${reservationColumnCount}">No reservations found for these filters.</td></tr>`}</tbody></table></div></section>
       </div>`;
+    main.dataset.managerPage = managerPage;
+    const managerWrap = main.querySelector(".manager-wrap");
+    const pageTitle = {
+      dashboard: "Sanctuary Manager Dashboard",
+      reservations: "Reservations",
+      walk_in: "Walk-In Booking",
+      therapists: "Therapists",
+      therapist_schedule: "Therapist Schedule & Day-Off Requests",
+      rooms: "Treatment Rooms",
+      treatments: "Treatments & Rates",
+      payments: "GCash Payments",
+    }[managerPage] || "Sanctuary Manager Dashboard";
+    managerWrap.querySelector("h1").textContent = pageTitle;
+    managerWrap.querySelector(".metrics").dataset.managerModule = "dashboard";
+    const panels = managerWrap.querySelectorAll(".panel");
+    panels.forEach((panel) => {
+      const heading = panel.querySelector("h2")?.textContent || "";
+      panel.dataset.managerModule = heading.startsWith("Room") ? "rooms" :
+        heading.startsWith("Therapist Availability") ? "therapists" : "reservations";
+    });
+
+    if (managerPage === "walk_in") {
+      managerWrap.insertAdjacentHTML("beforeend", `<section class="panel manager-module-panel manager-launch-panel" data-manager-module="walk_in"><div class="manager-launch-mark" aria-hidden="true"><span>01</span><strong>Front desk</strong></div><div class="manager-launch-copy"><p class="eyebrow">Front-desk workflow</p><h2>Register a walk-in guest</h2><p>Create a reservation with guest details, contact information, service selection, and a health declaration.</p><div class="manager-launch-steps"><span><b>01</b> Guest details</span><span><b>02</b> Choose a service</span><span><b>03</b> Confirm booking</span></div></div><button class="button button-dark" type="button" data-action="walkin">Start a booking <span aria-hidden="true">→</span></button></section>`);
+    }
+    if (managerPage === "treatments") {
+      managerWrap.insertAdjacentHTML("beforeend", `<section class="panel manager-module-panel" data-manager-module="treatments"><h2>Service catalogue</h2><div class="manager-service-grid">${serviceList.map((service) => `<article class="manager-service-card"><p class="eyebrow">${escapeHtml(service.label)}</p><h3>${escapeHtml(service.name)}</h3><p>${service.minGuests}${service.maxGuests > service.minGuests ? `–${service.maxGuests}` : ""} guest(s) · ${service.duration} minutes</p><strong>${money(service.base)}</strong></article>`).join("")}</div></section>`);
+    }
+    if (managerPage === "therapist_schedule") {
+      const dayNames = ["", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+      const scheduleByTherapist = new Map();
+      (state.manager.weeklySchedules || []).forEach((item) => {
+        if (!scheduleByTherapist.has(item.therapistId)) scheduleByTherapist.set(item.therapistId, new Map());
+        if (item.weekday) scheduleByTherapist.get(item.therapistId).set(item.weekday, item);
+      });
+      const scheduleRows = state.manager.therapists.map((therapist) => {
+        const workdays = scheduleByTherapist.get(Number(therapist.id.replace("th-", "")));
+        const days = Array.from({ length: 7 }, (_, index) => {
+          const weekday = index + 1;
+          const day = workdays?.get(weekday);
+          const hours = day?.isDayOff ? "Day Off" : `${formatTime(day?.startTime || "13:00")}–${formatTime(day?.endTime || "21:00")}`;
+          return `<li><strong>${dayNames[weekday]}</strong><span>${hours}</span></li>`;
+        }).join("");
+        return `<article class="manager-schedule-card"><h3>${escapeHtml(therapist.name)}</h3><ul>${days}</ul></article>`;
+      }).join("");
+      const requests = (state.manager.dayOffRequests || []).map((item) => `<tr><td>${escapeHtml(item.therapistName)}</td><td>${escapeHtml(item.date)}</td><td>${escapeHtml(item.note || "—")}</td><td><button class="button button-outline" data-action="day-off" data-status="approved" data-day-off="${item.id}" type="button">Approve</button> <button class="button button-outline" data-action="day-off" data-status="rejected" data-day-off="${item.id}" type="button">Decline</button></td></tr>`).join("");
+      managerWrap.insertAdjacentHTML("beforeend", `<section class="panel manager-module-panel" data-manager-module="therapist_schedule"><h2>Weekly work schedule</h2><div class="manager-schedule-grid">${scheduleRows || "<p>No therapists are configured.</p>"}</div><h2>Day-off requests</h2><div class="table-wrap"><table><thead><tr><th>Therapist</th><th>Date</th><th>Note</th><th>Decision</th></tr></thead><tbody>${requests || '<tr><td colspan="4">No pending day-off requests.</td></tr>'}</tbody></table></div></section>`);
+    }
+    if (managerPage === "payments") {
+      const paymentData = state.manager.payments || {};
+      const pendingPayments = paymentData.pending || [];
+      const visiblePendingPayments = state.paymentDate
+        ? pendingPayments.filter((payment) => String(payment.createdAt || "").slice(0, 10) === state.paymentDate)
+        : pendingPayments;
+      const verifiedPayments = paymentData.verified || [];
+      const paymentRows = visiblePendingPayments.map((payment) => {
+        const eligible = ["on_progress", "confirmed"].includes(payment.appointmentStatus);
+        const receiptButton = payment.hasReceipt
+          ? `<button class="button button-outline manager-receipt-button" type="button" data-payment-receipt="${payment.id}">View receipt</button>`
+          : `<span class="manager-payment-muted">No receipt</span>`;
+        return `<tr><td><strong>${escapeHtml(payment.orderId)}</strong><small>${escapeHtml(payment.createdAt || "")}</small></td><td>${escapeHtml(payment.customerName)}</td><td>${money(payment.amount)}</td><td><code>${escapeHtml(payment.referenceNumber)}</code></td><td>${receiptButton}</td><td><span class="manager-payment-status ${eligible ? "eligible" : "ineligible"}">${eligible ? "Ready to review" : "Booking needs attention"}</span></td><td><div class="manager-payment-actions"><button class="button button-dark" type="button" data-payment-approve="${payment.id}" ${eligible ? "" : "disabled"}>Approve</button><button class="button button-outline" type="button" data-payment-reject="${payment.id}">Reject</button></div></td></tr>`;
+      }).join("");
+      const paymentDateSummary = state.paymentDate
+        ? `Showing ${visiblePendingPayments.length} of ${pendingPayments.length} pending payments submitted on ${state.paymentDate}.`
+        : `Showing all ${pendingPayments.length} pending payments, including older submissions.`;
+      const emptyPaymentsMessage = state.paymentDate
+        ? 'No pending payments on this date. Choose another date or select “All dates” to review every pending submission.'
+        : "You’re all caught up. There are no payments waiting for verification.";
+      const verifiedRows = verifiedPayments.map((payment) =>
+        `<tr><td><strong>${escapeHtml(payment.orderId)}</strong></td><td>${escapeHtml(payment.customerName)}</td><td>${money(payment.amount)}</td><td>${escapeHtml(payment.verifiedAt || "—")}</td></tr>`
+      ).join("");
+      managerWrap.insertAdjacentHTML("beforeend", `<section class="panel manager-module-panel manager-payment-module" data-manager-module="payments">
+        <div class="manager-payment-intro"><div><p class="eyebrow">Manual GCash reconciliation</p><h2>Pending verification</h2><p>Match each submitted reference and receipt before confirming the guest’s booking.</p></div><span class="manager-payment-count"><strong>${pendingPayments.length}</strong><span>awaiting review</span></span></div>
+        <div class="manager-payment-filters"><label class="field" for="manager-payment-date">Submission date<input class="control" id="manager-payment-date" type="date" value="${escapeHtml(state.paymentDate)}"></label><button class="button button-outline" data-action="clear-payment-date" type="button" ${state.paymentDate ? "" : "disabled"}>All dates</button><p>Choose an earlier date to find older payments. Leave the date empty to show every pending submission.</p></div>
+        <p class="manager-payment-filter-status" role="status" aria-live="polite">${escapeHtml(paymentDateSummary)}</p>
+        <div class="table-wrap"><table><thead><tr><th>Order</th><th>Customer</th><th>Amount</th><th>GCash reference</th><th>Receipt</th><th>Booking</th><th>Review</th></tr></thead><tbody>${paymentRows || `<tr><td class="manager-payment-empty" colspan="7">${emptyPaymentsMessage}</td></tr>`}</tbody></table></div>
+        <section class="manager-verified-payments"><div><p class="eyebrow">Recent activity</p><h2>Verified payments</h2><p>Most recent 100 confirmed transactions.</p></div><div class="table-wrap"><table><thead><tr><th>Order</th><th>Customer</th><th>Amount</th><th>Verified</th></tr></thead><tbody>${verifiedRows || '<tr><td class="manager-payment-empty" colspan="4">No verified payments yet.</td></tr>'}</tbody></table></div></section>
+      </section>
+      <dialog class="manager-payment-dialog" data-payment-reject-dialog aria-labelledby="manager-reject-payment-title">
+        <form data-payment-reject-form>
+          <div class="manager-payment-dialog-heading"><div><p class="eyebrow">Payment review</p><h2 id="manager-reject-payment-title">Reject this payment?</h2></div><button class="manager-payment-dialog-close" type="button" data-payment-close aria-label="Close dialog">×</button></div>
+          <p>Give the guest a clear reason so they know what to correct before submitting again.</p>
+          <input type="hidden" name="paymentId">
+          <label class="field">Reason for rejection<textarea name="rejectionReason" maxlength="255" rows="4" required placeholder="For example: The reference number is unreadable."></textarea></label>
+          <p class="manager-payment-dialog-error" data-payment-dialog-error role="alert" hidden></p>
+          <div class="manager-payment-dialog-actions"><button class="button button-outline" type="button" data-payment-close>Keep pending</button><button class="button button-dark" type="submit">Reject payment</button></div>
+        </form>
+      </dialog>
+      <dialog class="manager-payment-dialog manager-receipt-dialog" data-payment-receipt-dialog aria-labelledby="manager-receipt-title">
+        <div class="manager-payment-dialog-heading"><div><p class="eyebrow">Submitted proof</p><h2 id="manager-receipt-title">GCash receipt</h2></div><button class="manager-payment-dialog-close" type="button" data-payment-close aria-label="Close receipt">×</button></div>
+        <img data-payment-receipt-image alt="Submitted GCash payment receipt">
+        <div class="manager-payment-dialog-actions"><button class="button button-dark" type="button" data-payment-close>Close receipt</button></div>
+      </dialog>`);
+    }
+
+    const managerPages = [
+      ["dashboard", "Dashboard"],
+      ["reservations", "Reservations"],
+      ["walk_in", "Walk-in booking"],
+      ["payments", "Payments"],
+      ["therapists", "Therapists"],
+      ["therapist_schedule", "Therapist schedule"],
+      ["rooms", "Rooms"],
+      ["treatments", "Treatments"],
+    ];
+    const navigation = document.createElement("nav");
+    navigation.className = "manager-sidebar";
+    navigation.setAttribute("aria-label", "Manager navigation");
+    const managerLinks = managerPages.map(([page, label], index) => {
+      const href = `${projectPath}manager/${page}`;
+      const current = page === managerPage;
+      return `<a href="${escapeHtml(href)}" ${current ? 'aria-current="page"' : ""}><span class="manager-nav-number" aria-hidden="true">${String(index + 1).padStart(2, "0")}</span><span class="manager-nav-label">${escapeHtml(label)}</span></a>`;
+    }).join("");
+    navigation.innerHTML = `<div class="manager-sidebar-header"><span class="manager-sidebar-heading">Workspace</span><button class="manager-menu-toggle" type="button" data-action="manager-nav-toggle" aria-label="Close workspace menu" aria-expanded="true" aria-controls="manager-sidebar-links"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button></div><div class="manager-sidebar-links" id="manager-sidebar-links">${managerLinks}</div>`;
+    main.classList.add("manager-active");
+    main.prepend(navigation);
+    const managerSearch = main.querySelector("#manager-search");
+    if (managerSearch) managerSearch.placeholder = "e.g., Juan, BVO-2026-ABC123 or SR-1";
   }
 
   async function loadManagerData({ silent = false } = {}) {
+    if (silent) state.paymentNotice = "";
     const previousData = state.manager ? JSON.stringify({
       appointments: state.manager.appointments,
       rooms: state.manager.rooms,
       therapists: state.manager.therapists,
+      payments: state.manager.payments,
     }) : null;
     try {
       state.error = "";
@@ -667,6 +986,7 @@
         appointments: state.manager.appointments,
         rooms: state.manager.rooms,
         therapists: state.manager.therapists,
+        payments: state.manager.payments,
       });
       if (!silent || previousData !== currentData) renderDashboard();
       else {
@@ -779,12 +1099,13 @@
     const recaptchaToken = getCaptchaToken(form);
     if (isManagerRoute) {
       saveBookingFields(form);
-      const guestName = String(values.get("guestName") || "").trim();
+      const guestFirstName = String(values.get("guestFirstName") || "").trim();
+      const guestLastName = String(values.get("guestLastName") || "").trim();
       const guestEmail = String(values.get("guestEmail") || "").trim();
-      if (!guestName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
-        state.bookingError = "Enter the walk-in guest’s name and a valid email address in step 01.";
+      if (!guestFirstName || !guestLastName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail)) {
+        state.bookingError = "Enter the walk-in guest’s first name, last name, and a valid email address in step 01.";
         renderBooking();
-        const field = document.querySelector(`#booking-form [name="${guestName ? "guestEmail" : "guestName"}"]`);
+        const field = document.querySelector(`#booking-form [name="${guestFirstName && guestLastName ? "guestEmail" : !guestFirstName ? "guestFirstName" : "guestLastName"}"]`);
         field?.focus();
         field?.scrollIntoView({ block: "center", behavior: "smooth" });
         return;
@@ -800,9 +1121,21 @@
       renderBooking();
       return;
     }
+    if (healthConditions.includes("Others") && !String(values.get("healthOthers") || "").trim()) {
+      state.bookingError = "Describe the other health condition before confirming.";
+      renderBooking();
+      document.querySelector('#booking-form [name="healthOthers"]')?.focus();
+      return;
+    }
     const slot = currentSlots().find((candidate) => candidate.available && candidate.startTime === state.selectedTime);
     if (!slot || state.availabilityLoading || state.availabilityError) {
       state.bookingError = "Choose an available treatment time before confirming.";
+      renderBooking();
+      return;
+    }
+    const therapistId = String(values.get("therapistId") || "");
+    if (!therapistId || state.therapistsLoading || state.therapistsError) {
+      state.bookingError = state.therapistsError || "Choose a therapist by specialty before confirming.";
       renderBooking();
       return;
     }
@@ -816,13 +1149,18 @@
     const payload = {
       serviceId: service.id, roomCode: state.roomCode, bookingDate: state.date,
       startTime: slot.startTime, guestCount: Number(values.get("guestCount")),
+      therapistId,
       guestPhone: String(values.get("guestPhone")).trim(), specialRequests: requests,
+      hasHealthOthers: healthConditions.includes("Others"),
+      healthOthers: String(values.get("healthOthers") || "").trim(),
       healthDeclared: true, termsAccepted: true,
       recaptchaToken,
     };
     if (isManagerRoute) {
       payload.bookingMode = "walkin";
-      payload.guestName = String(values.get("guestName")).trim();
+      payload.guestFirstName = String(values.get("guestFirstName")).trim();
+      payload.guestMiddleName = String(values.get("guestMiddleName") || "").trim();
+      payload.guestLastName = String(values.get("guestLastName")).trim();
       payload.guestEmail = String(values.get("guestEmail")).trim();
     }
     const submit = form.querySelector('button[type="submit"]');
@@ -837,7 +1175,7 @@
       state.bookingError = error.message;
       renderBooking();
       if (isManagerRoute && error.message.includes("walk-in guest")) {
-        const field = document.querySelector('#booking-form [name="guestName"]');
+        const field = document.querySelector('#booking-form [name="guestFirstName"]');
         field?.focus();
         field?.scrollIntoView({ block: "center", behavior: "smooth" });
       }
@@ -845,9 +1183,36 @@
   }
 
   document.addEventListener("click", (event) => {
-    const target = event.target.closest("[data-action], [data-auth-mode]");
+    const target = event.target.closest("[data-action], [data-auth-mode], [data-password-toggle]");
     if (!target) return;
+    if (target.matches("[data-password-toggle]")) {
+      const input = target.closest(".password-input-wrap")?.querySelector("input");
+      if (!input) return;
+      const showPassword = input.type === "password";
+      input.type = showPassword ? "text" : "password";
+      target.setAttribute("aria-pressed", showPassword ? "true" : "false");
+      const fieldLabel = target.getAttribute("aria-label").replace(/^Show\s*/, "").replace(/^Hide\s*/, "");
+      const finalLabel = `${showPassword ? "Hide" : "Show"}${fieldLabel ? ` ${fieldLabel}` : ""}`;
+      target.setAttribute("aria-label", finalLabel);
+      target.setAttribute("title", finalLabel);
+      target.classList.toggle("is-visible", showPassword);
+      input.focus();
+      return;
+    }
     const action = target.dataset.action;
+    if (action === "clear-payment-date") {
+      state.paymentDate = "";
+      renderDashboard();
+    }
+    if (action === "manager-nav-toggle") {
+      const navigation = target.closest(".manager-sidebar");
+      const managerMain = target.closest("#manager-main");
+      if (!navigation || !managerMain) return;
+      const collapsed = navigation.classList.toggle("is-collapsed");
+      managerMain.classList.toggle("manager-sidebar-collapsed", collapsed);
+      target.setAttribute("aria-expanded", String(!collapsed));
+      target.setAttribute("aria-label", collapsed ? "Open workspace menu" : "Close workspace menu");
+    }
     if (action === "book" || action === "walkin") openBooking(target.dataset.service || "single-room");
     if (action === "begin-selection") {
       state.selectionMode = true;
@@ -861,6 +1226,14 @@
     if (action === "delete-selected") void deleteManagerAppointments("selected");
     if (action === "delete-filtered") void deleteManagerAppointments("filtered");
     if (action === "delete-all") void deleteManagerAppointments("all");
+    if (action === "day-off") {
+      void saveManagerAction({
+        action: "day_off_status",
+        dayOffId: target.dataset.dayOff,
+        status: target.dataset.status,
+        csrfToken: state.managerCsrfToken,
+      });
+    }
     if (action === "guest-auth") state.guest ? openGuestProfile() : openGuestAuth("login");
     if (action === "guest-logout") {
       showLogoutConfirmation(false);
@@ -933,6 +1306,7 @@
     if (action === "slot") {
       state.selectedTime = target.dataset.time;
       renderBooking();
+      void loadTherapists();
     }
     if (action === "print") window.print();
     if (action === "logout") {
@@ -971,6 +1345,77 @@
     window.setTimeout(() => window.location.assign(destination.href), 180);
   });
 
+  document.addEventListener("click", async (event) => {
+    const closeButton = event.target.closest("[data-payment-close]");
+    if (closeButton) {
+      closeButton.closest("dialog")?.close();
+      return;
+    }
+
+    const receiptButton = event.target.closest("[data-payment-receipt]");
+    if (receiptButton) {
+      const dialog = document.querySelector("[data-payment-receipt-dialog]");
+      const image = dialog?.querySelector("[data-payment-receipt-image]");
+      if (!dialog || !image) return;
+      image.src = `${projectPath}receipt_image.php?id=${encodeURIComponent(receiptButton.dataset.paymentReceipt)}`;
+      image.alt = `Submitted GCash receipt for payment ${receiptButton.dataset.paymentReceipt}`;
+      dialog.showModal();
+      return;
+    }
+
+    const rejectButton = event.target.closest("[data-payment-reject]");
+    if (rejectButton) {
+      const dialog = document.querySelector("[data-payment-reject-dialog]");
+      const form = dialog?.querySelector("[data-payment-reject-form]");
+      const paymentId = form?.querySelector('[name="paymentId"]');
+      const reason = form?.querySelector('[name="rejectionReason"]');
+      const error = form?.querySelector("[data-payment-dialog-error]");
+      if (!dialog || !paymentId || !reason) return;
+      paymentId.value = rejectButton.dataset.paymentReject;
+      reason.value = "";
+      if (error) {
+        error.hidden = true;
+        error.textContent = "";
+      }
+      dialog.showModal();
+      reason.focus();
+      return;
+    }
+
+    const approveButton = event.target.closest("[data-payment-approve]");
+    if (!approveButton || approveButton.disabled) return;
+    approveButton.disabled = true;
+    approveButton.textContent = "Approving…";
+    await reviewManagerPayment(approveButton.dataset.paymentApprove, "payment_approve");
+  });
+
+  document.addEventListener("submit", async (event) => {
+    const form = event.target.closest("[data-payment-reject-form]");
+    if (!form) return;
+    event.preventDefault();
+    const values = new FormData(form);
+    const paymentId = String(values.get("paymentId") || "");
+    const rejectionReason = String(values.get("rejectionReason") || "").trim();
+    const error = form.querySelector("[data-payment-dialog-error]");
+    const submit = form.querySelector('button[type="submit"]');
+    if (!rejectionReason || rejectionReason.length > 255) {
+      if (error) {
+        error.textContent = "Enter a rejection reason of 1 to 255 characters.";
+        error.hidden = false;
+      }
+      return;
+    }
+    if (submit) {
+      submit.disabled = true;
+      submit.textContent = "Saving…";
+    }
+    await reviewManagerPayment(paymentId, "payment_reject", rejectionReason);
+    if (submit?.isConnected) {
+      submit.disabled = false;
+      submit.textContent = "Reject payment";
+    }
+  });
+
   document.addEventListener("change", async (event) => {
     const target = event.target;
     if (target.form?.id === "booking-form") saveBookingFields(target.form);
@@ -990,6 +1435,21 @@
       state.date = target.value;
       state.selectedTime = "";
       await loadAvailability();
+    } else if (target.name === "healthConditions" && target.value === "Others") {
+      saveBookingFields(target.form);
+      const field = target.form.querySelector(".health-others-field");
+      const input = field?.querySelector('[name="healthOthers"]');
+      if (field && input) {
+        field.hidden = !target.checked;
+        input.required = target.checked;
+        if (!target.checked) input.value = "";
+      }
+    } else if (target.id === "booking-specialty") {
+      state.specialtyFilter = target.value;
+      state.selectedTherapistId = "";
+      renderBooking();
+    } else if (target.id === "booking-therapist") {
+      state.selectedTherapistId = target.value;
     } else if (target.id === "booking-guests") {
       state.guestCount = Number(target.value);
       renderBooking();
@@ -998,6 +1458,9 @@
       await loadManagerData();
     } else if (target.id === "manager-filter") {
       state.filter = target.value;
+      renderDashboard();
+    } else if (target.id === "manager-payment-date") {
+      state.paymentDate = target.value;
       renderDashboard();
     } else if (target.dataset.action === "select-booking") {
       const selectedIds = new Set(state.selectedBookingIds);
@@ -1012,8 +1475,8 @@
     }
   });
   document.addEventListener("input", (event) => {
-    if (event.target.name === "fullName" || event.target.name === "guestName") {
-      event.target.value = Array.from(event.target.value.replace(/[^\p{L} ]/gu, "")).slice(0, 35).join("");
+    if (["firstName", "middleName", "lastName", "guestFirstName", "guestMiddleName", "guestLastName"].includes(event.target.name)) {
+      event.target.value = Array.from(event.target.value.replace(/[^\p{L} '-]/gu, "")).slice(0, 35).join("");
     }
     if (event.target.name === "guestPhone") {
       let digits = event.target.value.replace(/\D/g, "");
@@ -1285,7 +1748,9 @@
           await request("auth.php?operation=register", {
             method: "POST",
             body: JSON.stringify({
-              fullName: values.get("fullName"),
+              firstName: values.get("firstName"),
+              middleName: values.get("middleName"),
+              lastName: values.get("lastName"),
               email: state.authEmail,
               password: values.get("password"),
               recaptchaToken,
@@ -1334,6 +1799,31 @@
     } catch (error) {
       state.error = error.message;
       renderDashboard();
+    }
+  }
+
+  async function reviewManagerPayment(paymentId, action, rejectionReason = "") {
+    state.error = "";
+    state.paymentNotice = "";
+    try {
+      await request("manager_action.php", {
+        method: "POST",
+        body: JSON.stringify({
+          action,
+          paymentId,
+          rejectionReason,
+          csrfToken: state.managerCsrfToken,
+        }),
+      });
+      state.paymentNotice = action === "payment_approve"
+        ? "Payment approved. The reservation was confirmed where required."
+        : "Payment rejection saved.";
+      await loadManagerData();
+      return true;
+    } catch (error) {
+      state.error = error.message;
+      renderDashboard();
+      return false;
     }
   }
 

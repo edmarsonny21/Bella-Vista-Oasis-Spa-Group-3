@@ -27,6 +27,17 @@ if ($operation === 'session') {
     ]);
 }
 
+if ($operation === 'therapist_session') {
+    requireMethod('GET');
+    startManagerSession();
+    $authenticated = isset($_SESSION['therapist_id']);
+    sendJson([
+        'authenticated' => $authenticated,
+        'name' => $_SESSION['therapist_name'] ?? null,
+        'csrfToken' => $authenticated ? therapistCsrfToken() : null,
+    ]);
+}
+
 if ($operation === 'guest_session') {
     requireMethod('GET');
     startManagerSession();
@@ -92,6 +103,13 @@ if ($operation === 'guest_logout') {
     requireMethod('POST');
     startManagerSession();
     unset($_SESSION['guest_id'], $_SESSION['guest_name'], $_SESSION['guest_email']);
+    sendJson(['authenticated' => false]);
+}
+
+if ($operation === 'therapist_logout') {
+    requireMethod('POST');
+    startManagerSession();
+    unset($_SESSION['therapist_id'], $_SESSION['therapist_name'], $_SESSION['therapist_csrf_token']);
     sendJson(['authenticated' => false]);
 }
 
@@ -561,13 +579,20 @@ if ($operation === 'guest_email_change_resend') {
 
 if ($operation === 'register') {
     verifyRecaptchaToken($input['recaptchaToken'] ?? null);
-    $fullName = trim((string) ($input['fullName'] ?? ''));
+    $firstName = trim((string) ($input['firstName'] ?? ''));
+    $middleName = trim((string) ($input['middleName'] ?? ''));
+    $lastName = trim((string) ($input['lastName'] ?? ''));
+    $namePattern = "/^\\p{L}+(?:[ '-]\\p{L}+)*$/u";
+    $fullName = trim($firstName . ' ' . ($middleName !== '' ? $middleName . ' ' : '') . $lastName);
     $email = strtolower(trim((string) ($input['email'] ?? '')));
     $password = (string) ($input['password'] ?? '');
-    if ($fullName === '' || preg_match('/^\p{L}+(?:[ ]+\p{L}+)*$/u', $fullName) !== 1 ||
-        mb_strlen($fullName) > 35 || !filter_var($email, FILTER_VALIDATE_EMAIL) ||
+    if ($firstName === '' || $lastName === '' ||
+        preg_match($namePattern, $firstName) !== 1 || preg_match($namePattern, $lastName) !== 1 ||
+        ($middleName !== '' && preg_match($namePattern, $middleName) !== 1) ||
+        mb_strlen($firstName) > 35 || mb_strlen($middleName) > 35 || mb_strlen($lastName) > 35 ||
+        mb_strlen($fullName) > 150 || !filter_var($email, FILTER_VALIDATE_EMAIL) ||
         strlen($email) > 254 || strlen($password) < 12 || strlen($password) > 50) {
-        sendJson(['message' => 'Enter a 35-character name using letters and spaces, a valid email address, and a password with 12 to 50 characters.'], 422);
+        sendJson(['message' => 'Enter a first and last name (and an optional middle name), a valid email address, and a password with 12 to 50 characters.'], 422);
     }
 
     $pdo = database();
@@ -575,11 +600,14 @@ if ($operation === 'register') {
     try {
         $pdo->beginTransaction();
         $insert = $pdo->prepare(
-            'INSERT INTO guest_users (full_name, email, password_hash)
-             VALUES (:full_name, :email, :password_hash)'
+            'INSERT INTO guest_users (full_name, first_name, middle_name, last_name, email, password_hash)
+             VALUES (:full_name, :first_name, :middle_name, :last_name, :email, :password_hash)'
         );
         $insert->execute([
             'full_name' => $fullName,
+            'first_name' => $firstName,
+            'middle_name' => $middleName !== '' ? $middleName : null,
+            'last_name' => $lastName,
             'email' => $email,
             'password_hash' => password_hash($password, PASSWORD_DEFAULT),
         ]);
@@ -907,6 +935,29 @@ if ($operation === 'login') {
     $_SESSION['manager_id'] = (int) $manager['id'];
     $_SESSION['manager_name'] = $manager['full_name'];
     sendJson(['authenticated' => true, 'name' => $manager['full_name']]);
+}
+
+if ($operation === 'therapist_login') {
+    verifyRecaptchaToken($input['recaptchaToken'] ?? null);
+    $username = trim((string) ($input['username'] ?? ''));
+    $password = (string) ($input['password'] ?? '');
+    if (strlen($password) > 50) {
+        sendJson(['message' => 'Password cannot exceed 50 characters.'], 422);
+    }
+    $statement = database()->prepare(
+        'SELECT id, full_name, password_hash FROM therapists
+         WHERE username = ? AND password_hash IS NOT NULL LIMIT 1'
+    );
+    $statement->execute([$username]);
+    $therapist = $statement->fetch();
+    if (!$therapist || !password_verify($password, $therapist['password_hash'])) {
+        sendJson(['message' => 'The username or password is incorrect.'], 401);
+    }
+
+    session_regenerate_id(true);
+    $_SESSION['therapist_id'] = (int) $therapist['id'];
+    $_SESSION['therapist_name'] = $therapist['full_name'];
+    sendJson(['authenticated' => true, 'name' => $therapist['full_name']]);
 }
 
 sendJson(['message' => 'Unknown authentication operation.'], 404);

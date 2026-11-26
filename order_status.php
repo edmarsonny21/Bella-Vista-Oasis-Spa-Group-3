@@ -77,6 +77,7 @@ if ($selected) {
                 <a class="button" href="checkout_gcash.php?order_id=<?= rawurlencode($selected['booking_code']) ?>">Submit payment again</a>
               <?php elseif ($payment['payment_status'] === 'Verified'): ?>
                 <p class="notice success">Your payment was verified. Thank you.</p>
+                <a class="button" href="payment_receipt.php?order_id=<?= rawurlencode($selected['booking_code']) ?>">Print payment confirmation</a>
               <?php else: ?>
                 <p>Your payment receipt is being reviewed by our staff. This page will show the result once it has been checked.</p>
               <?php endif; ?>

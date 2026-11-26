@@ -91,10 +91,11 @@ $notices = [
           <form class="payment-form" method="post" action="submit_gcash.php" enctype="multipart/form-data">
             <input type="hidden" name="csrf_token" value="<?= gcashEscape(gcashCsrfToken()) ?>">
             <input type="hidden" name="order_id" value="<?= gcashEscape($appointment['booking_code']) ?>">
-            <label for="reference">13-digit GCash Reference Number</label>
-            <input id="reference" name="gcash_ref_number" type="text" inputmode="numeric" pattern="[0-9]{13}" minlength="13" maxlength="13" autocomplete="off" placeholder="Enter 13 digits" required>
-            <label for="receipt">GCash receipt screenshot <small>JPG or PNG, up to 5 MB</small></label>
+            <label for="reference">13-digit GCash Reference Number <span class="required-mark">*</span></label>
+            <input id="reference" name="gcash_ref_number" type="text" inputmode="numeric" pattern="[0-9]{13}" minlength="13" maxlength="13" autocomplete="off" placeholder="e.g., 1002345678901" required>
+            <label for="receipt">GCash receipt screenshot <span class="required-mark">*</span> <small>JPG or PNG, up to 5 MB</small></label>
             <input id="receipt" name="receipt_image" type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" required>
+            <p class="required-note"><span class="required-mark">*</span> Indicates required field</p>
             <button class="button" type="submit">Submit for verification</button>
           </form>
         <?php endif; ?>

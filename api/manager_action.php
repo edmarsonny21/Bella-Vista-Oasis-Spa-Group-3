@@ -7,6 +7,24 @@ requireMethod('POST');
 $input = requestJson();
 $action = $input['action'] ?? '';
 
+if ($action === 'day_off_status') {
+    requireManagerCsrf($input['csrfToken'] ?? null);
+    $dayOffId = filter_var($input['dayOffId'] ?? null, FILTER_VALIDATE_INT);
+    $status = $input['status'] ?? '';
+    if (!$dayOffId || !in_array($status, ['approved', 'rejected'], true)) {
+        sendJson(['message' => 'Choose a valid day-off request and decision.'], 422);
+    }
+    $statement = database()->prepare(
+        "UPDATE therapist_day_offs SET status = ?
+         WHERE id = ? AND status = 'requested'"
+    );
+    $statement->execute([$status, $dayOffId]);
+    if ($statement->rowCount() !== 1) {
+        sendJson(['message' => 'That day-off request has already been reviewed. Refresh and try again.'], 409);
+    }
+    sendJson(['saved' => true]);
+}
+
 if (in_array($action, ['delete_filtered', 'delete_all', 'delete_selected'], true)) {
     requireManagerCsrf($input['csrfToken'] ?? null);
     $filter = 'all';
@@ -99,6 +117,94 @@ if (in_array($action, ['delete_filtered', 'delete_all', 'delete_selected'], true
             ? 'Some receipt files could not be removed. Check the server error log.'
             : null,
     ]);
+}
+
+if (in_array($action, ['payment_approve', 'payment_reject'], true)) {
+    requireManagerCsrf($input['csrfToken'] ?? null);
+    $paymentId = filter_var($input['paymentId'] ?? null, FILTER_VALIDATE_INT);
+    $managerId = filter_var($_SESSION['manager_id'] ?? null, FILTER_VALIDATE_INT);
+    if (!$paymentId || $paymentId < 1 || !$managerId || $managerId < 1) {
+        sendJson(['message' => 'Choose a valid payment.'], 422);
+    }
+
+    $pdo = database();
+    if ($action === 'payment_approve') {
+        try {
+            $pdo->beginTransaction();
+            $paymentStatement = $pdo->prepare(
+                "SELECT p.appointment_id, a.status AS appointment_status
+                 FROM payments p
+                 JOIN appointments a ON a.id = p.appointment_id
+                 WHERE p.id = :payment_id AND p.payment_status = 'Pending Verification'
+                 LIMIT 1 FOR UPDATE"
+            );
+            $paymentStatement->execute(['payment_id' => $paymentId]);
+            $payment = $paymentStatement->fetch();
+            if (!$payment) {
+                $pdo->rollBack();
+                sendJson(['message' => 'That payment was already reviewed or is no longer pending. Refresh and try again.'], 409);
+            }
+            if (!in_array($payment['appointment_status'], ['on_progress', 'confirmed'], true)) {
+                $pdo->rollBack();
+                sendJson(['message' => 'This reservation is cancelled or completed, so the payment cannot automatically confirm it. Resolve the booking before approving.'], 422);
+            }
+
+            $updatePayment = $pdo->prepare(
+                "UPDATE payments
+                 SET payment_status = 'Verified', rejection_reason = NULL,
+                     verified_by = :manager_id, verified_at = NOW()
+                 WHERE id = :payment_id AND payment_status = 'Pending Verification'"
+            );
+            $updatePayment->execute(['manager_id' => $managerId, 'payment_id' => $paymentId]);
+            if ($updatePayment->rowCount() !== 1) {
+                $pdo->rollBack();
+                sendJson(['message' => 'That payment was already reviewed. Refresh and try again.'], 409);
+            }
+
+            if ($payment['appointment_status'] === 'on_progress') {
+                $confirmAppointment = $pdo->prepare(
+                    "UPDATE appointments SET status = 'confirmed'
+                     WHERE id = :appointment_id AND status = 'on_progress'"
+                );
+                $confirmAppointment->execute(['appointment_id' => $payment['appointment_id']]);
+                if ($confirmAppointment->rowCount() !== 1) {
+                    $pdo->rollBack();
+                    sendJson(['message' => 'The reservation changed while the payment was being approved. Refresh and try again.'], 409);
+                }
+            }
+            $pdo->commit();
+        } catch (PDOException $exception) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log('Manager GCash approval failed: ' . $exception->getMessage());
+            sendJson(['message' => 'The payment could not be approved and its reservation was not changed.'], 500);
+        }
+
+        sendJson(['saved' => true, 'status' => 'approved']);
+    }
+
+    $reasonValue = $input['rejectionReason'] ?? '';
+    $reason = is_string($reasonValue) ? trim($reasonValue) : '';
+    if ($reason === '' || mb_strlen($reason) > 255) {
+        sendJson(['message' => 'Enter a rejection reason of 1 to 255 characters.'], 422);
+    }
+    try {
+        $update = $pdo->prepare(
+            "UPDATE payments
+             SET payment_status = 'Rejected', rejection_reason = :reason,
+                 verified_by = :manager_id, verified_at = NULL
+             WHERE id = :payment_id AND payment_status = 'Pending Verification'"
+        );
+        $update->execute(['reason' => $reason, 'manager_id' => $managerId, 'payment_id' => $paymentId]);
+    } catch (PDOException $exception) {
+        error_log('Manager GCash rejection failed: ' . $exception->getMessage());
+        sendJson(['message' => 'The payment rejection could not be saved. Please try again.'], 500);
+    }
+    if ($update->rowCount() !== 1) {
+        sendJson(['message' => 'That payment was already reviewed or is no longer pending. Refresh and try again.'], 409);
+    }
+    sendJson(['saved' => true, 'status' => 'rejected']);
 }
 
 $appointmentId = $input['appointmentId'] ?? '';
@@ -197,6 +303,17 @@ if (($input['action'] ?? '') === 'status') {
             if (!$therapistStatement->fetch()) {
                 $pdo->rollBack();
                 sendJson(['message' => 'Therapist not found.'], 404);
+            }
+
+            if (!therapistIsAvailable(
+                $pdo,
+                $numericId,
+                (string) $booking['booking_date'],
+                (string) $booking['start_time'],
+                (string) $booking['end_time']
+            )) {
+                $pdo->rollBack();
+                sendJson(['message' => 'That therapist is off duty or unavailable for this reservation date and time. Choose another therapist.'], 409);
             }
 
             $conflictStatement = $pdo->prepare(

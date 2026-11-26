@@ -1,0 +1,8 @@
+node_modules/
+build/
+coverage/
+.DS_Store
+*.log
+.env*
+/config/local.php
+/storage/gcash-receipts/

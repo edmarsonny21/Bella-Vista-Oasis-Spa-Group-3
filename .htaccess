@@ -1,0 +1,16 @@
+Options -Indexes
+RewriteEngine On
+
+RewriteRule ^(?:src|node_modules|config|database|scripts|storage)(?:/|$) - [F,L,NC]
+RewriteRule (^|/)\. - [F,L,NC]
+RewriteRule ^(?:package(?:-lock)?\.json|bun\.lock|tsconfig\.json|vite\.config\.ts|metadata\.json|README\.md)$ - [F,L,NC]
+RewriteRule ^api/_bootstrap\.php$ - [F,L,NC]
+RewriteRule ^assets/ - [L]
+RewriteRule ^therapist(?:/(dashboard|appointments|schedule|day-offs))?/?$ therapist_portal.php?view=$1 [L,QSA]
+RewriteRule ^manager/(?:dashboard|reservations|walk_in|therapists|therapist_schedule|rooms|treatments)/?$ index.php [L]
+RewriteRule ^manager/?$ index.php [L]
+RewriteRule ^$ index.php [L]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [L]

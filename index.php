@@ -28,6 +28,7 @@ $appBasePath = $baseDirectory === '/' ? '/' : rtrim($baseDirectory, '/') . '/';
   <link rel="stylesheet" href="assets/css/manager.css?v=<?= filemtime(__DIR__ . '/assets/css/manager.css') ?>">
   <link rel="stylesheet" href="assets/css/refinements.css?v=<?= filemtime(__DIR__ . '/assets/css/refinements.css') ?>">
   <script>window.gcashQrCodeUrl = <?= json_encode('assets/images/gcash-qr-code.jpg?v=' . filemtime(__DIR__ . '/assets/images/gcash-qr-code.jpg')) ?>;</script>
+  <script defer src="assets/js/required-fields.js?v=<?= filemtime(__DIR__ . '/assets/js/required-fields.js') ?>"></script>
   <script defer src="assets/js/app.js?v=<?= filemtime(__DIR__ . '/assets/js/app.js') ?>"></script>
 </head>
 <body>

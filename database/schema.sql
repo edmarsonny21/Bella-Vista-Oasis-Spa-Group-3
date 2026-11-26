@@ -24,7 +24,13 @@ CREATE TABLE IF NOT EXISTS rooms (
 CREATE TABLE IF NOT EXISTS therapists (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   full_name VARCHAR(150) NOT NULL,
-  specialties VARCHAR(255) NOT NULL
+  first_name VARCHAR(35) NULL,
+  middle_name VARCHAR(35) NULL,
+  last_name VARCHAR(35) NULL,
+  username VARCHAR(50) NULL UNIQUE,
+  password_hash VARCHAR(255) NULL,
+  specialties VARCHAR(255) NOT NULL,
+  is_available TINYINT(1) NOT NULL DEFAULT 1
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS admin_users (
@@ -38,6 +44,9 @@ CREATE TABLE IF NOT EXISTS admin_users (
 CREATE TABLE IF NOT EXISTS guest_users (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   full_name VARCHAR(150) NOT NULL,
+  first_name VARCHAR(35) NULL,
+  middle_name VARCHAR(35) NULL,
+  last_name VARCHAR(35) NULL,
   email VARCHAR(254) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
   email_verified_at DATETIME NULL,
@@ -95,6 +104,9 @@ CREATE TABLE IF NOT EXISTS appointments (
   room_id INT UNSIGNED NOT NULL,
   therapist_id INT UNSIGNED NULL,
   guest_name VARCHAR(150) NOT NULL,
+  guest_first_name VARCHAR(35) NULL,
+  guest_middle_name VARCHAR(35) NULL,
+  guest_last_name VARCHAR(35) NULL,
   guest_email VARCHAR(254) NOT NULL,
   guest_phone VARCHAR(50) NOT NULL,
   booking_date DATE NOT NULL,
@@ -107,6 +119,7 @@ CREATE TABLE IF NOT EXISTS appointments (
   extra_pax_fee_total DECIMAL(10,2) NOT NULL DEFAULT 0,
   total_amount DECIMAL(10,2) NOT NULL,
   special_requests TEXT NULL,
+  health_others VARCHAR(500) NULL,
   health_declared TINYINT(1) NOT NULL,
   terms_accepted TINYINT(1) NOT NULL,
   status ENUM('on_progress', 'confirmed', 'in_session', 'cleaning', 'completed', 'cancelled') NOT NULL DEFAULT 'on_progress',
@@ -118,6 +131,68 @@ CREATE TABLE IF NOT EXISTS appointments (
   CONSTRAINT fk_appointments_room FOREIGN KEY (room_id) REFERENCES rooms(id),
   CONSTRAINT fk_appointments_therapist FOREIGN KEY (therapist_id) REFERENCES therapists(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS therapist_weekly_schedule (
+  therapist_id INT UNSIGNED NOT NULL,
+  weekday TINYINT UNSIGNED NOT NULL,
+  start_time TIME NULL,
+  end_time TIME NULL,
+  is_day_off TINYINT(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (therapist_id, weekday),
+  CONSTRAINT fk_therapist_schedule_therapist FOREIGN KEY (therapist_id)
+    REFERENCES therapists(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS therapist_day_offs (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  therapist_id INT UNSIGNED NOT NULL,
+  off_date DATE NOT NULL,
+  note VARCHAR(500) NULL,
+  status ENUM('requested', 'approved', 'rejected') NOT NULL DEFAULT 'requested',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_therapist_day_off (therapist_id, off_date),
+  CONSTRAINT fk_therapist_day_off_therapist FOREIGN KEY (therapist_id)
+    REFERENCES therapists(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS therapist_unavailable_periods (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  therapist_id INT UNSIGNED NOT NULL,
+  unavailable_date DATE NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  note VARCHAR(500) NULL,
+  CONSTRAINT fk_therapist_unavailable_therapist FOREIGN KEY (therapist_id)
+    REFERENCES therapists(id) ON DELETE CASCADE,
+  INDEX idx_therapist_unavailable_period (therapist_id, unavailable_date, start_time, end_time)
+) ENGINE=InnoDB;
+
+SET @schema_sql = IF(
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'therapists' AND COLUMN_NAME = 'first_name') = 0,
+  'ALTER TABLE therapists ADD COLUMN first_name VARCHAR(35) NULL AFTER full_name, ADD COLUMN middle_name VARCHAR(35) NULL AFTER first_name, ADD COLUMN last_name VARCHAR(35) NULL AFTER middle_name, ADD COLUMN username VARCHAR(50) NULL UNIQUE AFTER last_name, ADD COLUMN password_hash VARCHAR(255) NULL AFTER username, ADD COLUMN is_available TINYINT(1) NOT NULL DEFAULT 1 AFTER specialties',
+  'SELECT 1'
+);
+PREPARE schema_statement FROM @schema_sql;
+EXECUTE schema_statement;
+DEALLOCATE PREPARE schema_statement;
+
+SET @schema_sql = IF(
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'guest_users' AND COLUMN_NAME = 'first_name') = 0,
+  'ALTER TABLE guest_users ADD COLUMN first_name VARCHAR(35) NULL AFTER full_name, ADD COLUMN middle_name VARCHAR(35) NULL AFTER first_name, ADD COLUMN last_name VARCHAR(35) NULL AFTER middle_name',
+  'SELECT 1'
+);
+PREPARE schema_statement FROM @schema_sql;
+EXECUTE schema_statement;
+DEALLOCATE PREPARE schema_statement;
+
+SET @schema_sql = IF(
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'appointments' AND COLUMN_NAME = 'guest_first_name') = 0,
+  'ALTER TABLE appointments ADD COLUMN guest_first_name VARCHAR(35) NULL AFTER guest_name, ADD COLUMN guest_middle_name VARCHAR(35) NULL AFTER guest_first_name, ADD COLUMN guest_last_name VARCHAR(35) NULL AFTER guest_middle_name, ADD COLUMN health_others VARCHAR(500) NULL AFTER special_requests',
+  'SELECT 1'
+);
+PREPARE schema_statement FROM @schema_sql;
+EXECUTE schema_statement;
+DEALLOCATE PREPARE schema_statement;
 
 SET @schema_sql = IF(
   (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
@@ -216,3 +291,13 @@ INSERT INTO therapists (id, full_name, specialties) VALUES
   (5, 'Isla Patricia Tan', 'Pre-Natal Gentle Care, Facial Acupressure, Swedish Relax'),
   (6, 'Danilo Gomez', 'Family Lounge Group Lead, Traditional Bamboo Therapy')
 ON DUPLICATE KEY UPDATE full_name = VALUES(full_name), specialties = VALUES(specialties);
+
+INSERT INTO therapist_weekly_schedule (therapist_id, weekday, start_time, end_time, is_day_off)
+SELECT therapists.id, weekdays.weekday, '13:00:00', '21:00:00', 0
+FROM therapists
+CROSS JOIN (
+  SELECT 1 AS weekday UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
+  UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7
+) AS weekdays
+WHERE 1
+ON DUPLICATE KEY UPDATE therapist_id = VALUES(therapist_id);

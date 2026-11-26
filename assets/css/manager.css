@@ -55,9 +55,507 @@ html.brand-splash-active body {
   margin: 30px auto 56px;
 }
 
+#manager-main.manager-active {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  align-items: start;
+  gap: 20px;
+  transition: grid-template-columns .24s cubic-bezier(.2, .75, .25, 1);
+}
+
+#manager-main .manager-wrap {
+  width: min(100% - 32px, 1180px);
+  margin: 30px auto 56px;
+}
+
+.manager-sidebar {
+  position: sticky;
+  top: 88px;
+  display: grid;
+  gap: 8px;
+  margin: 26px 0 0 16px;
+  padding: 14px 12px 12px;
+  border: 1px solid rgba(30, 58, 47, .09);
+  border-radius: 16px;
+  background-color: #fff;
+  box-shadow: 0 12px 32px rgba(20, 40, 32, .065);
+  transition: padding .22s ease, box-shadow .22s ease;
+  grid-column: 1;
+  grid-row: 1 / span 2;
+}
+
+.manager-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 4px 4px;
+  padding: 2px 6px 12px 9px;
+  border-bottom: 1px solid rgba(30, 58, 47, .09);
+}
+
+.manager-sidebar-heading {
+  color: #52685b;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.manager-menu-toggle {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  place-items: center;
+  padding: 8px;
+  border: 0;
+  border-radius: 7px;
+  color: white;
+  background: var(--forest);
+  cursor: pointer;
+  transition: background-color .18s ease, transform .18s ease;
+}
+
+.manager-menu-toggle:hover {
+  transform: translateY(-1px);
+  background: var(--forest-dark);
+}
+
+.manager-menu-toggle:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
+.manager-menu-toggle svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.manager-sidebar-links {
+  display: grid;
+  gap: 5px;
+}
+
+#manager-main.manager-active > .manager-notice { grid-column: 2; grid-row: 1; }
+#manager-main.manager-active > .manager-wrap { grid-column: 2; grid-row: 2; }
+
+.manager-sidebar a {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 44px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #53645b;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color .18s ease, background-color .18s ease, border-color .18s ease, transform .18s ease;
+}
+
+.manager-nav-number {
+  min-width: 18px;
+  color: #89958d;
+  font-size: 9px;
+  letter-spacing: .08em;
+}
+
+.manager-nav-label {
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.manager-sidebar a:hover {
+  transform: translateX(2px);
+  border-color: #e8eee8;
+  color: var(--forest);
+  background: #f7f9f6;
+}
+
+.manager-sidebar a[aria-current="page"] {
+  border-color: rgba(226, 196, 127, .18);
+  color: white;
+  background-color: #1c4432;
+  box-shadow: 0 5px 14px rgba(23, 58, 43, .16);
+}
+
+.manager-sidebar a[aria-current="page"] .manager-nav-number {
+  color: #e2c47f;
+}
+
+.manager-sidebar a[aria-current="page"]:hover {
+  transform: none;
+  color: white;
+  background-color: #1c4432;
+}
+
+.manager-sidebar a:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+#manager-main.manager-sidebar-collapsed {
+  grid-template-columns: 84px minmax(0, 1fr);
+}
+
+#manager-main.manager-sidebar-collapsed .manager-sidebar {
+  padding: 10px 8px;
+}
+
+#manager-main.manager-sidebar-collapsed .manager-sidebar-header {
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border-bottom: 0;
+}
+
+#manager-main.manager-sidebar-collapsed .manager-sidebar-heading,
+#manager-main.manager-sidebar-collapsed .manager-sidebar-links {
+  display: none;
+}
+
+#manager-main[data-manager-page="dashboard"] [data-manager-module]:not([data-manager-module="dashboard"]),
+#manager-main[data-manager-page="reservations"] [data-manager-module]:not([data-manager-module="reservations"]),
+#manager-main[data-manager-page="walk_in"] [data-manager-module]:not([data-manager-module="walk_in"]),
+#manager-main[data-manager-page="therapists"] [data-manager-module]:not([data-manager-module="therapists"]),
+#manager-main[data-manager-page="therapist_schedule"] [data-manager-module]:not([data-manager-module="therapist_schedule"]),
+#manager-main[data-manager-page="rooms"] [data-manager-module]:not([data-manager-module="rooms"]),
+#manager-main[data-manager-page="treatments"] [data-manager-module]:not([data-manager-module="treatments"]),
+#manager-main[data-manager-page="payments"] [data-manager-module]:not([data-manager-module="payments"]) {
+  display: none !important;
+}
+
+.manager-module-panel { min-height: 220px; }
+
+.manager-payment-module {
+  overflow: hidden;
+}
+
+.manager-payment-intro {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.manager-verified-payments > div:first-child {
+  display: block;
+}
+
+.manager-payment-intro {
+  margin-bottom: 20px;
+}
+
+.manager-payment-intro h2,
+.manager-verified-payments h2 {
+  margin: 4px 0 7px;
+  color: var(--forest);
+  font: 700 23px "Playfair Display", Georgia, serif;
+}
+
+.manager-payment-intro p:not(.eyebrow),
+.manager-verified-payments > div:first-child > p:last-child {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.manager-payment-count {
+  display: grid;
+  min-width: 130px;
+  gap: 2px;
+  padding: 12px 16px;
+  border: 1px solid rgba(30, 58, 47, .12);
+  border-radius: 10px;
+  background: #f5f8f4;
+  text-align: center;
+}
+
+.manager-payment-count strong {
+  color: var(--forest);
+  font-size: 25px;
+}
+
+.manager-payment-count span,
+.manager-payment-muted {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.manager-payment-module .table-wrap {
+  border: 1px solid rgba(30, 58, 47, .1);
+  border-radius: 10px;
+}
+
+.manager-payment-module table {
+  min-width: 900px;
+}
+
+.manager-payment-module td small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.manager-payment-status {
+  display: inline-flex;
+  padding: 6px 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.manager-payment-status.eligible {
+  color: #245c3e;
+  background: #edf5ef;
+}
+
+.manager-payment-status.ineligible {
+  color: #795629;
+  background: #f8f1e4;
+}
+
+.manager-payment-actions {
+  display: flex;
+  gap: 7px;
+}
+
+.manager-payment-actions .button,
+.manager-receipt-button {
+  min-height: 36px;
+  padding: 7px 10px;
+  font-size: 11px;
+}
+
+.manager-payment-actions .button:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.manager-payment-empty {
+  padding: 24px !important;
+  color: var(--muted);
+  text-align: center;
+}
+
+.manager-verified-payments {
+  display: grid;
+  gap: 16px;
+  margin-top: 30px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(30, 58, 47, .12);
+}
+
+.manager-payment-dialog {
+  width: min(500px, calc(100% - 32px));
+  max-height: min(90vh, 760px);
+  padding: clamp(20px, 4vw, 30px);
+  overflow: auto;
+  border: 1px solid rgba(197, 160, 89, .45);
+  border-radius: 14px;
+  color: var(--ink);
+  background: var(--canvas);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .28);
+}
+
+.manager-payment-dialog::backdrop {
+  background: rgba(7, 19, 14, .58);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+.manager-payment-dialog form {
+  display: grid;
+  gap: 14px;
+}
+
+.manager-payment-dialog-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.manager-payment-dialog-heading h2 {
+  margin: 4px 0 0;
+  color: var(--forest);
+  font: 700 23px "Playfair Display", Georgia, serif;
+}
+
+.manager-payment-dialog > p,
+.manager-payment-dialog form > p:not(.eyebrow) {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.manager-payment-dialog .field {
+  display: grid;
+  gap: 7px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.manager-payment-dialog textarea {
+  width: 100%;
+  min-height: 110px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: white;
+  color: var(--ink);
+  font: inherit;
+  resize: vertical;
+}
+
+.manager-payment-dialog textarea:focus-visible,
+.manager-payment-dialog button:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
+.manager-payment-dialog-close {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  border: 1px solid rgba(30, 58, 47, .14);
+  border-radius: 50%;
+  color: var(--forest);
+  background: white;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.manager-payment-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.manager-payment-dialog-error {
+  color: #a33b35 !important;
+}
+
+.manager-receipt-dialog {
+  width: min(760px, calc(100% - 32px));
+}
+
+.manager-receipt-dialog > img {
+  display: block;
+  width: 100%;
+  max-height: 65vh;
+  margin: 20px 0;
+  border-radius: 8px;
+  object-fit: contain;
+  background: #eee9df;
+}
+.manager-service-grid,
+.manager-schedule-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.manager-service-card,
+.manager-schedule-card {
+  padding: 16px;
+  border: 1px solid rgba(44, 62, 80, .1);
+  border-radius: 10px;
+  background: #fffdf9;
+}
+
+.manager-service-card h3,
+.manager-schedule-card h3 { margin: 6px 0; color: var(--forest); }
+.manager-schedule-card ul { margin: 0; padding: 0; list-style: none; }
+.manager-schedule-card li { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
+.required-mark { color: #b42318; font-weight: 800; }
+.required-note { margin: 8px 0; color: var(--muted); font-size: 11px; }
+.health-others-field[hidden] { display: none !important; }
+
 .dashboard-title {
   align-items: center;
   margin-bottom: 24px;
+}
+
+#manager-main[data-manager-page] .dashboard-title {
+  position: relative;
+  overflow: hidden;
+  min-height: 184px;
+  padding: clamp(24px, 4vw, 38px);
+  border-left: 5px solid var(--gold);
+  border-radius: 0 14px 14px 0;
+  background-color: #173a2b;
+  box-shadow: 0 16px 38px rgba(20, 40, 32, .14);
+}
+
+#manager-main[data-manager-page] .dashboard-title::after {
+  position: absolute;
+  top: -190px;
+  right: 18%;
+  width: 360px;
+  height: 360px;
+  border: 1px solid rgba(226, 196, 127, .15);
+  border-radius: 50%;
+  box-shadow: 0 0 0 28px rgba(226, 196, 127, .035), 0 0 0 62px rgba(226, 196, 127, .025);
+  content: "";
+  pointer-events: none;
+}
+
+#manager-main[data-manager-page] .dashboard-title > * {
+  position: relative;
+  z-index: 1;
+}
+
+#manager-main[data-manager-page] .dashboard-title .eyebrow {
+  color: #e2c47f;
+}
+
+#manager-main[data-manager-page] .dashboard-title h1 {
+  max-width: 640px;
+  margin: 6px 0 10px;
+  color: white;
+  font-size: clamp(30px, 4vw, 43px);
+  letter-spacing: -.035em;
+}
+
+#manager-main[data-manager-page] .dashboard-title > div:first-child > small {
+  color: rgba(255, 255, 255, .76);
+}
+
+#manager-main[data-manager-page] .dashboard-actions .button-outline {
+  border-color: rgba(255, 255, 255, .35);
+  color: white;
+  background: rgba(255, 255, 255, .06);
+}
+
+#manager-main[data-manager-page] .dashboard-actions .button-outline:hover {
+  border-color: rgba(255, 255, 255, .7);
+  background: rgba(255, 255, 255, .14);
+}
+
+#manager-main[data-manager-page] .dashboard-actions .button-dark {
+  color: var(--forest);
+  background: #e2c47f;
+}
+
+#manager-main[data-manager-page] .dashboard-actions .button-dark:hover {
+  background: #f0d99e;
 }
 
 .dashboard-title h1 {
@@ -103,34 +601,54 @@ html.brand-splash-active body {
 
 .metrics {
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-  margin: 22px 0;
+  gap: 16px;
+  margin: 20px 0 24px;
 }
 
 .metric,
 .panel {
-  border-color: rgba(44, 62, 80, .1);
-  border-radius: 12px;
-  box-shadow: 0 5px 20px rgba(20, 40, 32, .035);
+  border-color: rgba(30, 58, 47, .11);
+  border-radius: 13px;
+  box-shadow: 0 8px 26px rgba(20, 40, 32, .045);
 }
 
 .metric {
-  min-height: 124px;
-  padding: 18px 20px;
-  transition: transform .2s ease, box-shadow .2s ease;
+  position: relative;
+  min-height: 142px;
+  overflow: hidden;
+  padding: 20px 22px;
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
 }
+
+.metric::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 3px;
+  background: var(--gold);
+  content: "";
+}
+
+.metric:nth-child(2)::before { background: #537f66; }
+.metric:nth-child(3)::before { background: #b48a42; }
+.metric:nth-child(4)::before { background: #738a9b; }
 
 .metric:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 24px rgba(20, 40, 32, .08);
+  border-color: rgba(197, 160, 89, .42);
 }
 
 .metric small {
   font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .11em;
 }
 
 .metric strong {
-  font-size: 27px;
+  margin: 10px 0 4px;
+  font-size: clamp(24px, 2.4vw, 31px);
 }
 
 .metric span {
@@ -139,12 +657,14 @@ html.brand-splash-active body {
 }
 
 .panel {
-  margin: 18px 0;
-  padding: 20px;
+  margin: 20px 0;
+  padding: clamp(18px, 2.5vw, 26px);
 }
 
 .panel h2 {
-  margin-top: 0;
+  margin: 0 0 18px;
+  font-size: 19px;
+  letter-spacing: -.02em;
 }
 
 .login-card {
@@ -292,6 +812,7 @@ html.brand-splash-active body {
 .manager-page .table-wrap {
   border: 1px solid rgba(44, 62, 80, .09);
   border-radius: 10px;
+  background: white;
 }
 
 .therapist-status-grid {
@@ -374,6 +895,67 @@ html.brand-splash-active body {
 }
 
 @media (max-width: 760px) {
+  #manager-main.manager-active {
+    display: block;
+  }
+
+  .manager-sidebar {
+    position: static;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin: 16px 16px 0;
+    padding: 8px;
+    overflow: visible;
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .manager-sidebar-header {
+    margin: 0;
+    padding: 0 4px 8px;
+  }
+
+  .manager-sidebar-links {
+    display: flex;
+    min-width: 0;
+    gap: 5px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  #manager-main.manager-sidebar-collapsed {
+    grid-template-columns: 1fr;
+  }
+
+  #manager-main.manager-sidebar-collapsed .manager-sidebar-header {
+    justify-content: space-between;
+    padding: 0 4px;
+    border-bottom: 0;
+  }
+
+  #manager-main.manager-sidebar-collapsed .manager-sidebar-heading {
+    display: block;
+  }
+
+  #manager-main.manager-sidebar-collapsed .manager-sidebar-links {
+    display: none;
+  }
+
+  #manager-main.manager-active > .manager-notice,
+  #manager-main.manager-active > .manager-wrap {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .manager-sidebar-links a {
+    flex: 0 0 auto;
+    min-height: 42px;
+    padding: 5px 9px;
+    white-space: nowrap;
+  }
+
   .manager-header {
     position: static;
     gap: 12px;
@@ -387,8 +969,20 @@ html.brand-splash-active body {
     margin-top: 22px;
   }
 
+  #manager-main .manager-wrap {
+    width: calc(100% - 28px);
+    margin: 20px auto 40px;
+  }
+
   .dashboard-title {
     align-items: flex-start;
+  }
+
+  #manager-main[data-manager-page] .dashboard-title {
+    min-height: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 22px;
   }
 
   .dashboard-actions {
@@ -397,6 +991,30 @@ html.brand-splash-active body {
 
   .metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .manager-payment-intro {
+    flex-direction: column;
+  }
+
+  .manager-payment-count {
+    min-width: 0;
+    grid-template-columns: auto auto;
+    align-items: baseline;
+    justify-content: start;
+    gap: 8px;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 1100px) {
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #manager-main[data-manager-page] .dashboard-title {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 20px;
   }
 }
 
@@ -419,6 +1037,17 @@ html.brand-splash-active body {
   .metric {
     min-height: 112px;
     padding: 14px;
+  }
+
+  .manager-payment-actions,
+  .manager-payment-dialog-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .manager-payment-actions .button,
+  .manager-payment-dialog-actions .button {
+    width: 100%;
   }
 }
 

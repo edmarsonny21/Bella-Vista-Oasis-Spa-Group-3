@@ -7,14 +7,27 @@ $input = requestJson();
 startManagerSession();
 if (($input['bookingMode'] ?? '') === 'walkin') {
     requireManager();
-    $walkInName = trim((string) ($input['guestName'] ?? ''));
+    $walkInFirstName = trim((string) ($input['guestFirstName'] ?? ''));
+    $walkInMiddleName = trim((string) ($input['guestMiddleName'] ?? ''));
+    $walkInLastName = trim((string) ($input['guestLastName'] ?? ''));
+    $namePattern = "/^\\p{L}+(?:[ '-]\\p{L}+)*$/u";
+    $walkInName = trim($walkInFirstName . ' ' . ($walkInMiddleName !== '' ? $walkInMiddleName . ' ' : '') . $walkInLastName);
     $walkInEmail = strtolower(trim((string) ($input['guestEmail'] ?? '')));
-    if ($walkInName === '' || mb_strlen($walkInName) > 35 ||
-        preg_match('/^\p{L}+(?:[ ]+\p{L}+)*$/u', $walkInName) !== 1 || strlen($walkInEmail) > 254 ||
+    if ($walkInFirstName === '' || $walkInLastName === '' ||
+        preg_match($namePattern, $walkInFirstName) !== 1 || preg_match($namePattern, $walkInLastName) !== 1 ||
+        ($walkInMiddleName !== '' && preg_match($namePattern, $walkInMiddleName) !== 1) ||
+        mb_strlen($walkInFirstName) > 35 || mb_strlen($walkInMiddleName) > 35 ||
+        mb_strlen($walkInLastName) > 35 || mb_strlen($walkInName) > 150 || strlen($walkInEmail) > 254 ||
         !filter_var($walkInEmail, FILTER_VALIDATE_EMAIL)) {
-        sendJson(['message' => 'Enter a walk-in guest name of at most 35 letters and a valid email address.'], 422);
+        sendJson(['message' => 'Enter the walk-in guest’s first and last name, optional middle name, and a valid email address.'], 422);
     }
-    $guest = ['full_name' => $walkInName, 'email' => $walkInEmail];
+    $guest = [
+        'full_name' => $walkInName,
+        'first_name' => $walkInFirstName,
+        'middle_name' => $walkInMiddleName ?: null,
+        'last_name' => $walkInLastName,
+        'email' => $walkInEmail,
+    ];
 } else {
     $guest = requireGuest();
 }
@@ -29,8 +42,18 @@ foreach ($required as $field) {
     }
 }
 
+$therapistId = $input['therapistId'] ?? '';
+if (!is_string($therapistId) || !preg_match('/^th-([1-9]\d*)$/', $therapistId, $therapistMatch)) {
+    sendJson(['message' => 'Choose a therapist before confirming your reservation.'], 422);
+}
+
 if (empty($input['healthDeclared']) || empty($input['termsAccepted'])) {
     sendJson(['message' => 'Accept the health declaration and booking policies to continue.'], 422);
+}
+$healthOthers = trim((string) ($input['healthOthers'] ?? ''));
+if (!empty($input['hasHealthOthers']) &&
+    ($healthOthers === '' || mb_strlen($healthOthers) > 500)) {
+    sendJson(['message' => 'Describe the other health condition in 1 to 500 characters.'], 422);
 }
 $parsedBookingDate = DateTimeImmutable::createFromFormat('!Y-m-d', $input['bookingDate']);
 if (!$parsedBookingDate || $parsedBookingDate->format('Y-m-d') !== $input['bookingDate'] ||
@@ -81,6 +104,41 @@ try {
         sendJson(['message' => 'Choose a valid unelapsed session time on the fixed schedule.'], 422);
     }
 
+    $selectedTherapistId = (int) $therapistMatch[1];
+    $therapistStatement = $pdo->prepare('SELECT id FROM therapists WHERE id = ? FOR UPDATE');
+    $therapistStatement->execute([$selectedTherapistId]);
+    if (!$therapistStatement->fetch()) {
+        $pdo->rollBack();
+        sendJson(['message' => 'The selected therapist is no longer available. Choose another therapist.'], 409);
+    }
+    if (!therapistIsAvailable(
+        $pdo,
+        $selectedTherapistId,
+        $input['bookingDate'],
+        $start->format('H:i:s'),
+        $end->format('H:i:s')
+    )) {
+        $pdo->rollBack();
+        sendJson(['message' => 'The selected therapist is off duty or unavailable for that date and time. Choose another therapist.'], 409);
+    }
+
+    $therapistConflict = $pdo->prepare(
+        "SELECT booking_code FROM appointments
+         WHERE therapist_id = :therapist_id AND booking_date = :booking_date
+           AND status <> 'cancelled' AND start_time < :end_time
+           AND end_time > :start_time LIMIT 1"
+    );
+    $therapistConflict->execute([
+        'therapist_id' => $selectedTherapistId,
+        'booking_date' => $input['bookingDate'],
+        'end_time' => $end->format('H:i:s'),
+        'start_time' => $start->format('H:i:s'),
+    ]);
+    if ($therapistConflict->fetch()) {
+        $pdo->rollBack();
+        sendJson(['message' => 'That therapist already has an overlapping booking. Choose another therapist or time.'], 409);
+    }
+
     $conflict = $pdo->prepare(
         "SELECT id FROM appointments
          WHERE room_id = :room_id AND booking_date = :booking_date
@@ -105,22 +163,28 @@ try {
     $bookingCode = 'BVO-' . date('Y') . '-' . strtoupper(bin2hex(random_bytes(3)));
     $insert = $pdo->prepare(
         "INSERT INTO appointments
-         (booking_code, guest_user_id, service_id, room_id, guest_name, guest_email, guest_phone,
+         (booking_code, guest_user_id, service_id, room_id, therapist_id, guest_name,
+          guest_first_name, guest_middle_name, guest_last_name, guest_email, guest_phone,
           booking_date, start_time, end_time, cleaning_end_time, guest_count,
           extra_pax_count, base_rate, extra_pax_fee_total, total_amount,
-          special_requests, health_declared, terms_accepted, status)
+          special_requests, health_others, health_declared, terms_accepted, status)
          VALUES
-         (:booking_code, :guest_user_id, :service_id, :room_id, :guest_name, :guest_email, :guest_phone,
+         (:booking_code, :guest_user_id, :service_id, :room_id, :therapist_id, :guest_name,
+          :guest_first_name, :guest_middle_name, :guest_last_name, :guest_email, :guest_phone,
           :booking_date, :start_time, :end_time, :cleaning_end_time, :guest_count,
           :extra_pax_count, :base_rate, :extra_pax_fee_total, :total_amount,
-          :special_requests, 1, 1, :status)"
+          :special_requests, :health_others, 1, 1, :status)"
     );
     $insert->execute([
         'booking_code' => $bookingCode,
         'guest_user_id' => isset($guest['id']) ? (int) $guest['id'] : null,
         'service_id' => $room['service_id'],
         'room_id' => $room['id'],
+        'therapist_id' => $selectedTherapistId,
         'guest_name' => $guest['full_name'],
+        'guest_first_name' => $guest['first_name'] ?? null,
+        'guest_middle_name' => $guest['middle_name'] ?? null,
+        'guest_last_name' => $guest['last_name'] ?? null,
         'guest_email' => $guest['email'],
         'guest_phone' => trim($input['guestPhone']),
         'booking_date' => $input['bookingDate'],
@@ -133,6 +197,7 @@ try {
         'extra_pax_fee_total' => $extraFee,
         'total_amount' => $baseRate + $extraFee,
         'special_requests' => trim((string) ($input['specialRequests'] ?? '')),
+        'health_others' => !empty($input['hasHealthOthers']) ? $healthOthers : null,
         'status' => $initialStatus,
     ]);
     $bookingId = (int) $pdo->lastInsertId();
@@ -146,9 +211,10 @@ try {
 }
 
 $lookup = $pdo->prepare(
-    "SELECT a.*, s.name AS service_name, r.room_code, NULL AS therapist_name
+    "SELECT a.*, s.name AS service_name, r.room_code, t.full_name AS therapist_name
      FROM appointments a JOIN services s ON s.id = a.service_id
-     JOIN rooms r ON r.id = a.room_id WHERE a.id = ?"
+     JOIN rooms r ON r.id = a.room_id
+     LEFT JOIN therapists t ON t.id = a.therapist_id WHERE a.id = ?"
 );
 $lookup->execute([$bookingId]);
 sendJson(['booking' => appointmentToClient($lookup->fetch())], 201);

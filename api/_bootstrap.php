@@ -116,6 +116,92 @@ function requireManager(): void
     }
 }
 
+function requireTherapist(): array
+{
+    startManagerSession();
+    $therapistId = $_SESSION['therapist_id'] ?? null;
+    if (!is_int($therapistId)) {
+        sendJson(['message' => 'Please sign in to the therapist portal.'], 401);
+    }
+
+    $statement = database()->prepare(
+        'SELECT id, full_name, first_name, middle_name, last_name, is_available
+         FROM therapists WHERE id = :id LIMIT 1'
+    );
+    $statement->execute(['id' => $therapistId]);
+    $therapist = $statement->fetch();
+    if (!$therapist) {
+        unset($_SESSION['therapist_id'], $_SESSION['therapist_name']);
+        sendJson(['message' => 'Please sign in to the therapist portal.'], 401);
+    }
+
+    return $therapist;
+}
+
+function therapistCsrfToken(): string
+{
+    startManagerSession();
+    if (!isset($_SESSION['therapist_csrf_token']) ||
+        !is_string($_SESSION['therapist_csrf_token']) ||
+        !preg_match('/^[a-f0-9]{64}$/', $_SESSION['therapist_csrf_token'])) {
+        $_SESSION['therapist_csrf_token'] = bin2hex(random_bytes(32));
+    }
+
+    return $_SESSION['therapist_csrf_token'];
+}
+
+function requireTherapistCsrf(mixed $token): void
+{
+    startManagerSession();
+    $expected = $_SESSION['therapist_csrf_token'] ?? '';
+    if (!is_string($token) || !is_string($expected) || $expected === '' || !hash_equals($expected, $token)) {
+        sendJson(['message' => 'Your session expired. Reload the therapist portal and try again.'], 403);
+    }
+}
+
+function therapistIsAvailable(PDO $pdo, int $therapistId, string $date, string $startTime, string $endTime): bool
+{
+    $therapist = $pdo->prepare('SELECT is_available FROM therapists WHERE id = ?');
+    $therapist->execute([$therapistId]);
+    if ((int) $therapist->fetchColumn() !== 1) {
+        return false;
+    }
+
+    $dayOff = $pdo->prepare(
+        "SELECT id FROM therapist_day_offs
+         WHERE therapist_id = ? AND off_date = ? AND status IN ('requested', 'approved') LIMIT 1"
+    );
+    $dayOff->execute([$therapistId, $date]);
+    if ($dayOff->fetchColumn()) {
+        return false;
+    }
+
+    $weekday = (int) (new DateTimeImmutable($date))->format('N');
+    $schedule = $pdo->prepare(
+        'SELECT start_time, end_time, is_day_off FROM therapist_weekly_schedule
+         WHERE therapist_id = ? AND weekday = ? LIMIT 1'
+    );
+    $schedule->execute([$therapistId, $weekday]);
+    $workday = $schedule->fetch();
+    if ($workday && (
+        (bool) $workday['is_day_off'] ||
+        $workday['start_time'] === null ||
+        $workday['end_time'] === null ||
+        $startTime < $workday['start_time'] ||
+        $endTime > $workday['end_time']
+    )) {
+        return false;
+    }
+
+    $unavailable = $pdo->prepare(
+        'SELECT id FROM therapist_unavailable_periods
+         WHERE therapist_id = ? AND unavailable_date = ?
+           AND start_time < ? AND end_time > ? LIMIT 1'
+    );
+    $unavailable->execute([$therapistId, $date, $endTime, $startTime]);
+    return !$unavailable->fetchColumn();
+}
+
 function managerCsrfToken(): string
 {
     startManagerSession();
@@ -178,7 +264,7 @@ function requireGuest(): array
     }
 
     $statement = database()->prepare(
-        'SELECT id, full_name, email FROM guest_users
+        'SELECT id, full_name, first_name, middle_name, last_name, email FROM guest_users
          WHERE id = :id AND email_verified_at IS NOT NULL LIMIT 1'
     );
     $statement->execute(['id' => $guestId]);
@@ -381,7 +467,11 @@ function appointmentToClient(array $row): array
         'roomCode' => $row['room_code'],
         'therapistId' => $row['therapist_id'] === null ? null : 'th-' . $row['therapist_id'],
         'therapistName' => $row['therapist_name'],
+        'availableTherapistIds' => $row['available_therapist_ids'] ?? [],
         'guestName' => $row['guest_name'],
+        'guestFirstName' => $row['guest_first_name'] ?? null,
+        'guestMiddleName' => $row['guest_middle_name'] ?? null,
+        'guestLastName' => $row['guest_last_name'] ?? null,
         'guestEmail' => $row['guest_email'],
         'guestPhone' => $row['guest_phone'],
         'bookingDate' => $row['booking_date'],
@@ -394,6 +484,7 @@ function appointmentToClient(array $row): array
         'extraPaxFeeTotal' => (float) $row['extra_pax_fee_total'],
         'totalAmount' => (float) $row['total_amount'],
         'specialRequests' => $row['special_requests'],
+        'healthOthers' => $row['health_others'] ?? null,
         'healthDeclared' => (bool) $row['health_declared'],
         'termsAccepted' => (bool) $row['terms_accepted'],
         'status' => $row['status'],

@@ -91,6 +91,13 @@ $payments = database()->query(
      WHERE payment_status = 'Pending Verification'
      ORDER BY created_at ASC"
 )->fetchAll();
+$verifiedPayments = database()->query(
+    "SELECT p.order_id, p.customer_name, p.amount, p.verified_at
+     FROM payments p
+     WHERE p.payment_status = 'Verified'
+     ORDER BY p.verified_at DESC
+     LIMIT 100"
+)->fetchAll();
 $result = (string) ($_GET['result'] ?? '');
 ?>
 <!doctype html>
@@ -99,17 +106,26 @@ $result = (string) ($_GET['result'] ?? '');
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GCash Payment Review | Bella Vista Oasis Spa</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/gcash.css?v=<?= filemtime(__DIR__ . '/assets/css/gcash.css') ?>">
 </head>
 <body>
   <main class="gcash-shell admin-shell">
     <header class="gcash-header">
       <a class="brand-link" href="manager">Bella Vista Oasis Spa · Manager</a>
-      <nav><a href="manager">Manager dashboard</a></nav>
+      <nav aria-label="Manager navigation"><a href="manager/dashboard">Dashboard</a><a href="manager/reservations">Reservations</a><a href="manager/walk_in">Walk-in booking</a><a href="manager/payments" aria-current="page">Payments</a><a href="manager/therapists">Therapists</a><a href="manager/therapist_schedule">Therapist schedule</a><a href="manager/rooms">Rooms</a><a href="manager/treatments">Treatments</a></nav>
     </header>
-    <section class="gcash-card admin-card">
+    <section class="gcash-card admin-card admin-payment-hero">
       <p class="eyebrow">Manual GCash reconciliation</p>
-      <h1>Payment verification</h1>
+      <div class="admin-payment-title">
+        <div>
+          <h1>Payment verification</h1>
+          <p>Review submitted receipts and reconcile guest payments.</p>
+        </div>
+        <span class="pending-count"><strong><?= count($payments) ?></strong> awaiting review</span>
+      </div>
       <?php if ($result === 'approved'): ?><p class="notice success" role="status">Payment approved and reservation confirmed.</p><?php endif; ?>
       <?php if ($result === 'updated'): ?><p class="notice success" role="status">Payment rejection saved.</p><?php endif; ?>
       <?php if ($result === 'already-reviewed'): ?><p class="notice" role="status">That payment was already reviewed or is no longer pending.</p><?php endif; ?>
@@ -150,6 +166,30 @@ $result = (string) ($_GET['result'] ?? '');
                       </form>
                     </div>
                   </td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      <?php endif; ?>
+    </section>
+    <section class="gcash-card admin-card verified-payment-list">
+      <p class="eyebrow">Verified transactions</p>
+      <h2>Payment confirmations</h2>
+      <?php if (!$verifiedPayments): ?>
+        <p class="empty-state">No verified payments yet.</p>
+      <?php else: ?>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Booking reference</th><th>Guest</th><th>Amount paid</th><th>Verified</th><th>Receipt</th></tr></thead>
+            <tbody>
+              <?php foreach ($verifiedPayments as $payment): ?>
+                <tr>
+                  <td><strong><?= gcashEscape($payment['order_id']) ?></strong></td>
+                  <td><?= gcashEscape($payment['customer_name']) ?></td>
+                  <td><?= gcashEscape(gcashMoney($payment['amount'])) ?></td>
+                  <td><?= gcashEscape($payment['verified_at']) ?></td>
+                  <td><a class="button" href="payment_receipt.php?order_id=<?= rawurlencode($payment['order_id']) ?>">Print confirmation</a></td>
                 </tr>
               <?php endforeach; ?>
             </tbody>
